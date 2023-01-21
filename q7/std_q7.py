@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Author: Benoit DELORME
-Mail: delormebenoit211@gmail.com
-Creation date: 26th June 2021
-Main objective: provide an IT version of the tools of quality, as described
-                by Dr. Ishikawa in its book 'Guide for Quality Control, 1968'
-"""
-
+# Author: Benoit DELORME
+# Mail: delormebenoit211@gmail.com
+# Creation date: 26/06/2021
+# Main objective: provide an IT version of the tools of quality, as described
+# by Dr. Ishikawa in its book 'Guide for Quality Control, 1968'
 
 import math
 import matplotlib.pyplot as plt
@@ -22,15 +18,13 @@ from matplotlib.patches import Ellipse
 
 
 class QualityTool():
-    """
-    Quality tools are used in very different situations.
+    """Quality tools are used in very different situations.
     However, their purposes are often similar:
     - analysis,
     - control,
     - decision taking,
     - ...
-    These common purposes are gathered in the present class.
-    """
+    These common purposes are gathered in the present class."""
     def __init__(self, purpose=None, scale=None, process=None, line=None,
         product=None, date=None, shift=None, multiple='Unique', divers=None):
         self.purpose = purpose
@@ -56,12 +50,10 @@ class QualityTool():
 
 # 2nd tool
 class Histogram(QualityTool):
-    """
-    What is a histogram?
+    """What is a histogram?
         -> a histogram is a graph that represents the distribution of a quantitative variable.
     What use is a histogram?
-        -> shows the global and local tendencies, the outliers, ...
-    """
+        -> shows the global and local tendencies, the outliers, ..."""
     def __init__(self, df, feature, quantile_sup=1, quantile_inf=0):
         super().__init__()
         self.feature = feature
@@ -116,9 +108,10 @@ class Histogram(QualityTool):
         data = self.clean_data(self.data)
         data = self.data_without_outliers(data, self.quantile_sup, self.quantile_inf)
         [mu, sigma, skewness, kurtosis] = self.statistical_metadata(data)
-        # plt.tight_layout(5.0)
-        fig, (ax_box, ax_dist) = plt.subplots(2, 1, sharex='all',
-                                              gridspec_kw={'height_ratios': [1, 5]})
+        #
+        plt.tight_layout(5.0)
+        fig, (ax_box, ax_dist) = plt.subplots(2, 1,
+                                              sharex='all', gridspec_kw={'height_ratios': [1, 5]})
         fig.suptitle('Distribution of ' + self.feature)
         sns.set_theme(style="darkgrid")
         sns.boxplot(data, ax=ax_box)
@@ -139,13 +132,12 @@ class Histogram(QualityTool):
 
 # 3rd tool
 class ControlChart(QualityTool):
-    """
-    A control chart is a QC tool designed to:
+    """A QC tool designed to:
     - reveal the state of control of a process,
     - identify the outliers,
     - warn the user when the process becomes out of control,
-    - help decisions and actions.
-    """
+    - help decisions and actions."""
+
     def __init__(self, data, feature_name, reverse=False):
         super().__init__()
         self.data = data
@@ -170,8 +162,7 @@ class ControlChart(QualityTool):
         r_bar = [stat.mean(r_list)] * len(r_list)
         # Control limits
         constants_df = upload_csv(path=PATH, file='3_constants.csv',
-                                  df_variable='constants_df',
-                                  df_name='Constants dataframe')
+                                  df_variable='constants_df', df_name='Constants dataframe')
         constants_df.set_index('sample size', inplace=True)
         self.A2 = float(constants_df.loc[n_samples]['A2'])
         self.D3 = float(constants_df.loc[n_samples]['D3'])
@@ -595,7 +586,7 @@ class Pareto(QualityTool):
         sns.set_theme(style="darkgrid")
         [categories, frequencies] = self.categories_and_frequencies()
         cum_frequencies = list(np.array(frequencies).cumsum())
-        factor = len(categories) - 1
+        factor = len(categories)-1
         fig = plt.figure(figsize=(math.sqrt(factor*5),
                                   math.sqrt(factor*3)))
         # Bins
@@ -642,14 +633,12 @@ class Pareto(QualityTool):
 
 
 class PieChart(QualityTool):
-    """
-    What is a piechart?
+    """What is a piechart?
         -> a piechart is a graph that represents the repartition of several categories in a feature.
         What use is a piechart?
         -> a piechart is used for qualitative features with few categories.
         For features with 4 categories or less, a piechart is used.
-        For features with 5 categories or more, a Pareto graph is used.
-    """
+        For features with 5 categories or more, a Pareto graph is used."""
     def __init__(self, df, column, proportion_acceptance):
         super().__init__()
         self.df = df
@@ -657,32 +646,22 @@ class PieChart(QualityTool):
         self.rate = proportion_acceptance
 
     def filter(self, column):
-        """
-        Reject the values representing less than rate % of the given feature length.
-        """
+        """Reject the values representing less than rate % of the given feature length."""
         categories_dict = dict(Counter(self.df[column]))
         df_length = self.df.shape[0]
-        new_dict = {category: count
-                    for category, count in categories_dict.items()
-                    if count/df_length > self.rate}
+        new_dict = {category: count for category, count in categories_dict.items() if count/df_length > self.rate}
         return new_dict
 
     def plot(self):
         categories_dict = self.filter(self.column)
-        categories_dict = {category: count
-                           for category, count in sorted(categories_dict.items(),
-                                                         key=lambda item: item[1])}
+        categories_dict = {category: count for category, count in sorted(categories_dict.items(), key=lambda item: item[1])}
         categories = list(categories_dict.keys())
         counts = list(categories_dict.values())
         # Plot
         fig, ax = plt.subplots(figsize=(8, 5),
                                subplot_kw=dict(aspect="equal"))
         ax.set_title('Unique elements of ' + self.column + ' (>{}%)'.format(self.rate))
-        patches, texts, autotexts = ax.pie(counts,
-                                           autopct=lambda x: round(x, 1),
-                                           startangle=90, shadow=True,
-                                           wedgeprops={'edgecolor':'white',
-                                                       'linewidth': 1})
+        patches, texts, autotexts = ax.pie(counts, autopct=lambda x: round(x, 1), startangle=90)
         ax.legend(patches, categories, title='Categories', loc="best")
         plt.setp(autotexts, size=12, weight="bold")
         plt.show()
