@@ -1,0 +1,7 @@
+# Folders
+/archives/*
+/q7/.idea/*
+/versioning/*
+
+# Files
+*.pyc
