@@ -1,15 +1,15 @@
-"""
-Author: B.Delorme
-Creation date: 24th June 2021
-Main objective: to provide a support for k-means clustering.
-"""
+# Author: B.Delorme
+# Creation date: 24/06/2021
+# Main objective: to provide a support for k-means clustering.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
-from sklearn import metrics
 from sklearn.cluster import KMeans
+from sklearn import metrics
+from sklearn.metrics import davies_bouldin_score, pairwise_distances
 from sklearn.manifold import TSNE
 
 
@@ -18,18 +18,16 @@ class KmeansIdentifier():
     def __init__(self, df):
         self.df = df
 
-    def get_fitted_model(self, n_clust):
-        model = KMeans(n_clusters=n_clust)
-        X = self.df.to_numpy()
-        model = model.fit(X)
-        return model
-
-    def add_labels(self, n_clust):
+    def get_model_and_add_labels(self, n_clust, n_init=10, max_iter=300, tol=0.0001):
         """
         Given a dataframe, fit k-means on it and adds labels as a new feature.
         """
-        model = self.get_fitted_model(n_clust)
+        model = KMeans(n_clusters=n_clust, n_init=n_init,
+                              max_iter=max_iter, tol=tol)
+        X = self.df.to_numpy()
+        model = model.fit(X)
         self.df['k-means label'] = model.labels_
+        return model
 
     def get_kmeans_metrics(self, model):
         labels = model.labels_
@@ -45,28 +43,25 @@ class KmeansIdentifier():
         Represents the projection in t-SNE with k-means labels as colors.
         """
         if 'k-means label' not in list(self.df.columns):
-            self.add_labels(n_clust)
+            _ = self.get_model_and_add_labels(self.df, n_clust)
         tsne_df = self.df.drop('k-means label', axis=1)
         tsne_res = TSNE(n_components=2, random_state=0).fit_transform(tsne_df)
         kmeans_labels = np.expand_dims(self.df['k-means label'], axis=1)
         tsne_res_add = np.append(tsne_res, kmeans_labels, axis=1)
         # Plot
-        plt.title('k-means groups in t-SNE plan')
-        sns.scatterplot(x=tsne_res_add[:, 0],
-                        y=tsne_res_add[:, 1],
-                        hue=tsne_res_add[:, 2],
-                        palette=sns.hls_palette(n_clust,
-                                                as_cmap=True),
-                        legend='full',
-                        s=5)
+        n_dim = self.df.shape[1] - 1
+        plt.title('k-means groups in t-SNE plan \n{} principal components'.format(n_dim))
+        sns.scatterplot(x=tsne_res_add[:, 0], y=tsne_res_add[:, 1],
+                        hue=tsne_res_add[:, 2], palette=sns.hls_palette(n_clust),
+                        legend='full', s=5)
 
-    def kmeans_on_feature(self, my_feature, n_clust):
+    def kmeans_on_feature(self, my_feature):
         """
         Represent the disparities between k-means groups for one feature of the
         original dataframe.
         """
         if 'k-means_labels' not in list(self.df.columns):
-            self.get_kmeans_df(n_clust)
+            self.df = self.get_kmeans_df(self.df)
         n_clust = self.df['k-means_labels'].nunique()
         # Séparation des groupes
         groupe_df_list = []
