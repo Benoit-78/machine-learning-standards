@@ -2,10 +2,10 @@ import time
 from datetime import datetime
 import tracemalloc
 
-def time_log(start_time):
+def time_log(time_start):
     # Run time
     log_messages = ['', '=', "  Programm successfully executed.  "]
-    time_delta = round(time.time() - start_time, 1)
+    time_delta = round(time.time() - time_start, 1)
     log_messages.append("  Run time ....... " + str(time_delta) + " s")
     # End run time
     now = datetime.now()
@@ -19,4 +19,4 @@ def time_log(start_time):
     log_messages[1] = decoration
     log_messages.append(decoration)
     log_messages.append('')
-    print("\n".join(log_messages))
+    return "\n".join(log_messages)
