@@ -2,7 +2,7 @@
 """
 Author: Benoit DELORME
 Mail: delormebenoit211@gmail.com
-Creation date: 26/06/2021
+Creation date: 26th June 2021
 Main objective: provide an IT version of the tools of quality, as described
                 by Dr. Ishikawa in its book 'Guide for Quality Control, 1968'
 """
@@ -18,6 +18,7 @@ import statistics as stat
 
 from collections import Counter
 from matplotlib.patches import Ellipse
+
 
 
 class QualityTool():
