@@ -7,7 +7,6 @@ Main objective: provide a support for exploratory data analysis.
 """
 
 import glob
-import lime
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,8 +24,8 @@ from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from . import std_q7
-from . import std_kmeans
+from . import q7
+from . import kmeans
 
 
 
@@ -410,7 +409,7 @@ class EdaExplorator():
             info_df = self.dataset_infos()
             return info_df.style.bar(color='lightblue', align='mid')
 
-        def nan_proportion_per_column(self):
+        def plot_data_per_column(self):
             # Form the dataframe
             proportions_df = pd.DataFrame(columns=['Feature', 'NaN proportion', 'Color'])
             for column in self.outer.df.columns:
@@ -436,13 +435,13 @@ class EdaExplorator():
         def plot_feature(self, column, rate=0.001, quantile_sup=1, quantile_inf=0):
             feat_type = self.outer.computer.feature_type(column)
             if feat_type in ['binary', 'low_cardinality']:
-                graph = std_q7.PieChart(self.outer.df, column, rate)
+                graph = q7.PieChart(self.outer.df, column, rate)
                 graph.plot()
             elif feat_type == 'qualitative':
-                graph = std_q7.Pareto(self.outer.df, column, rate)
+                graph = q7.Pareto(self.outer.df, column, rate)
                 graph.plot()
             else:
-                graph = std_q7.Histogram(self.outer.df, column, quantile_sup, quantile_inf)
+                graph = q7.Histogram(self.outer.df, column, quantile_sup, quantile_inf)
                 graph.plot()
             plt.show()
 
@@ -499,21 +498,25 @@ class EdaExplorator():
                        interpolation='nearest',
                        cmap='gray')
             plt.grid(axis='x')
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.tick_params(axis="x", bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
             plt.xlabel('Column number')
             plt.ylabel('Sample number')
 
-        def plot_nan_per_sample(self):
-            nan_proportions = []
-            for i, index in enumerate(self.outer.df.index):
-                sample_list = self.outer.df.iloc[i]
-                nan_proportion = sample_list.isna().sum() / len(sample_list)
-                nan_proportions.append(nan_proportion)
-            # Plot
-            plt.title('NaN proportion per sample')
+        def plot_data_per_sample(self, chunk=20):
+            nan_sum = list(self.outer.df.notna().sum(axis=1))
+            width = self.outer.df.shape[1]
+            nan_proportions = [element / width for element in nan_sum]
+            nan_s = pd.Series(nan_proportions)
+            nan_s = nan_s.groupby(np.arange(len(nan_s)) // chunk).mean()
+            plt.figure(figsize=(15, 5))
+            plt.title('Data proportion per sample (non NaN)\nAverages every {} samples.'.format(chunk))
+            plt.grid(axis='x')
+            plt.grid(axis='y')
             plt.ylim((0, 1.1))
-            plt.bar(x=list(range(0, self.outer.df.shape[0])),
-                    height=nan_proportions)
+            x_axis = [i*chunk for i, element in enumerate(nan_s)]
+            plt.plot(x_axis, nan_s, linewidth=0,
+                     marker='o', markersize=1)
 
         def memory_usage_per_column(self):
             memory_df = pd.DataFrame(columns=['Feature', 'Memory', 'Color'])
@@ -537,7 +540,8 @@ class EdaExplorator():
             plt.figure(figsize=(5, 5 + math.sqrt(5 * memory_df.shape[0])))
             max_memory = max(memory_df['Memory']) 
             plt.xlim((0, 1.05 * max_memory))
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.tick_params(axis="x", bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
             plt.grid(axis='x')
             plt.title('Memory usage per column (MB)\nTotal: {} MB'.format(total_memory))
             plt.barh(memory_df['Feature'],
@@ -783,7 +787,6 @@ class FeatureEngineer():
         frequencies_df['Cumulated sum'] = frequencies_df['Frequency'].cumsum()
         return frequencies_df
 
-
     def replace_rare_categories(self, column, rate=0.001, replace_by='others'):
         count_dict = self.df[column].value_counts()
         rare_values = []
@@ -791,7 +794,7 @@ class FeatureEngineer():
             if count < self.df.shape[0] * rate:
                 rare_values.append(value)
         for rare_value in rare_values:
-            self.df[column] = self.df[column].replace('^'+rare_value+'$',
+            self.df[column] = self.df[column].replace('^' + rare_value + '$',
                                                       'others', regex=True)
         return self.df
 
@@ -832,7 +835,7 @@ class FeatureEngineer():
         scaled_df = pd.DataFrame(scaled_df, columns=quant_columns)
         for column in quant_columns:
             self.df[column] = list(scaled_df[column])
-        return self.df
+        return self.
 
     def split_and_scale(self, target):
         X = self.df.drop(target, axis=1)
