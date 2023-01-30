@@ -7,6 +7,7 @@ Main objective: provide a support for exploratory data analysis.
 """
 
 import glob
+import lime
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,8 +25,8 @@ from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from . import q7
-from . import kmeans
+from . import std_q7
+from . import std_kmeans
 
 
 
@@ -435,13 +436,13 @@ class EdaExplorator():
         def plot_feature(self, column, rate=0.001, quantile_sup=1, quantile_inf=0):
             feat_type = self.outer.computer.feature_type(column)
             if feat_type in ['binary', 'low_cardinality']:
-                graph = q7.PieChart(self.outer.df, column, rate)
+                graph = std_q7.PieChart(self.outer.df, column, rate)
                 graph.plot()
             elif feat_type == 'qualitative':
-                graph = q7.Pareto(self.outer.df, column, rate)
+                graph = std_q7.Pareto(self.outer.df, column, rate)
                 graph.plot()
             else:
-                graph = q7.Histogram(self.outer.df, column, quantile_sup, quantile_inf)
+                graph = std_q7.Histogram(self.outer.df, column, quantile_sup, quantile_inf)
                 graph.plot()
             plt.show()
 
@@ -782,35 +783,17 @@ class FeatureEngineer():
         frequencies_df['Cumulated sum'] = frequencies_df['Frequency'].cumsum()
         return frequencies_df
 
-    def replace_rare_categories(self, column, rate=0.999, replace_by='others'):
-        """
-        Note: setting rate to 0.80 is equivalent to take only the most
-        important categories.
-        """
-        frequencies_df = self.category_frequencies_df(column)
-        useful_length = frequencies_df[frequencies_df['Cumulated sum'] < rate].shape[0]
-        if useful_length >= 1:
-            frequencies_df = frequencies_df[:useful_length + 1]
-            most_frequents = list(frequencies_df['Category'])
-            all_categories = list(self.df[column].unique())
-            non_frequents = [val for val in all_categories
-                             if val not in most_frequents]
-            self.df[column] = self.df[column].replace(non_frequents, replace_by)
-        else:
-            self.df.drop(column, axis=1, inplace=True)
-            print(most_frequents = 'Not relevant. ' \
-                             'Original column has been dropped from the dataframe')
-        return self.df
 
-    def replace_rare_categories_v2(df, column, rate=0.001, replace_by='others'):
-        count_dict = df[column].value_counts()
+    def replace_rare_categories(self, column, rate=0.001, replace_by='others'):
+        count_dict = self.df[column].value_counts()
         rare_values = []
         for value, count in count_dict.items():
-            if count < df.shape[0] * rate:
+            if count < self.df.shape[0] * rate:
                 rare_values.append(value)
         for rare_value in rare_values:
-            df[column] = df[column].replace('^'+rare_value+'$', 'others', regex=True)
-        return df
+            self.df[column] = self.df[column].replace('^'+rare_value+'$',
+                                                      'others', regex=True)
+        return self.df
 
     def add_date_differences(self, date_column):
         self.df[date_column] = pd.to_datetime(self.df[date_column])
@@ -832,11 +815,11 @@ class FeatureEngineer():
         self.df[column] = self.df[column].apply(np.log)
         return self.df
 
-    def scale_column(self, df, mode):
+    def scale_column(self, mode):
         quant_columns = []
-        for column in df.columns:
-            not_an_object = (df[column].dtype != 'object')
-            not_boolean = (df[column].nunique() > 4)
+        for column in self.df.columns:
+            not_an_object = (self.df[column].dtype != 'object')
+            not_boolean = (self.df[column].nunique() > 4)
             if not_an_object and not_boolean:
                 quant_columns.append(column)
         if mode == 'std':
@@ -845,11 +828,11 @@ class FeatureEngineer():
             scaler = MinMaxScaler()
         else:
             return print('Non valid mode.')
-        scaled_df = scaler.fit_transform(np.array(df[quant_columns]))
+        scaled_df = scaler.fit_transform(np.array(self.df[quant_columns]))
         scaled_df = pd.DataFrame(scaled_df, columns=quant_columns)
         for column in quant_columns:
-            df[column] = list(scaled_df[column])
-        return df
+            self.df[column] = list(scaled_df[column])
+        return self.df
 
     def split_and_scale(self, target):
         X = self.df.drop(target, axis=1)
@@ -862,10 +845,13 @@ class FeatureEngineer():
 
 
 class PcaDisplayer():
-    def plot_scree(self, df, n_comp):
+    def __init__(self, df):
+        self.df = df
+
+    def plot_scree(self, n_comp):
         """Displays the pareto diagram of the proper values of a given dataframe."""
         pca = decomposition.PCA(n_components=n_comp)
-        pca.fit(df)
+        pca.fit(self.df)
         scree_ = pca.explained_variance_ratio_ * 100
         #
         plt.figure(figsize=(6, 8))
@@ -878,10 +864,10 @@ class PcaDisplayer():
         plt.title("Proper values histogram")
         plt.show(block=False)
 
-    def plot_dataset_in_principal_plane(self, df, n_comp):
-        df = df.dropna()
+    def plot_dataset_in_principal_plane(self, n_comp):
+        self.df = self.df.dropna()
         pca = PCA(n_components=n_comp)
-        pca_df = pca.fit_transform(df)
+        pca_df = pca.fit_transform(self.df)
         sns.set_theme(style="darkgrid")
         a_plot = sns.relplot(pca_df[:, 0], pca_df[:, 1], s=5)
         max_x = np.abs(max(pca_df[:, 0]))
@@ -891,28 +877,33 @@ class PcaDisplayer():
         a_plot.set(ylim=(-boundary, boundary))
         return a_plot
 
-    def scree(self, df, n_comp):
-        """Returns the proper values of a given dataframe."""
+    def scree(self, n_comp):
+        """
+        Returns the proper values of a given dataframe.
+        """
         pca = decomposition.PCA(n_components=n_comp)
-        pca.fit(df)
+        pca.fit(self.df)
         return pca.singular_values_
 
-    def feature_circle(self, df, n_comp, pca, axis_ranks):
-        """Display the correlations with arrows in the first factorial plane."""
+    def feature_circle(self, n_comp, pca, axis_ranks):
+        """
+        Display the correlations with arrows in the first factorial plane.
+        """
         x_min, x_max, y_min, y_max = -1, 1, -1, 1
         for d1, d2 in axis_ranks:
             if d2 < n_comp:
                 fig, ax = plt.subplots(figsize=(7, 6))
                 # Features bars
-                lines = [[[0, 0], [x, y]] for x, y in df[[d1, d2]].T]
+                lines = [[[0, 0], [x, y]] for x, y in self.df[[d1, d2]].T]
                 ax.add_collection(LineCollection(lines, axes=ax,
                                                  alpha=.1, color='black'))
                 # Variables names
                 if labels is not None:
-                    for i, (x, y) in enumerate(df[[d1, d2]].T):
-                        if x >= xmin and x <= xmax and y >= ymin and y <= ymax:
+                    for i, (x, y) in enumerate(self.df[[d1, d2]].T):
+                        if x >= x_min and x <= x_max and y >= y_min and y <= y_max:
                             plt.text(x, y, labels[i],
-                                     fontsize='14', ha='center', va='center', color="blue", alpha=0.5)
+                                     fontsize='14', ha='center', va='center',
+                                     color="blue", alpha=0.5)
                 # Plot
                 circle = plt.Circle((0, 0), 1, facecolor='none', edgecolor='b')
                 plt.gca().add_artist(circle)
@@ -920,8 +911,10 @@ class PcaDisplayer():
                 plt.ylim(y_min, y_max)
                 plt.plot([-1, 1], [0, 0], color='grey', ls='--')
                 plt.plot([0, 0], [-1, 1], color='grey', ls='--')
-                plt.xlabel('F{} ({}%)'.format(d1 + 1, round(100 * pca.explained_variance_ratio_[d1], 1)))
-                plt.ylabel('F{} ({}%)'.format(d2 + 1, round(100 * pca.explained_variance_ratio_[d2], 1)))
+                plt.xlabel('F{} ({}%)'.format(d1 + 1,
+                                              round(100 * pca.explained_variance_ratio_[d1], 1)))
+                plt.ylabel('F{} ({}%)'.format(d2 + 1,
+                                              round(100 * pca.explained_variance_ratio_[d2], 1)))
                 plt.title("Cercle des corrélations (F{} et F{})".format(d1 + 1, d2 + 1))
                 plt.show(block=False)
 
@@ -969,43 +962,47 @@ class PcaDisplayer():
                 plt.title("Projection des individus (sur F{} et F{})".format(d1+1, d2+1))
                 plt.show(block=False)
 
-    def df_proper_values(self, df, n_comp):
+    def df_proper_values(self, n_comp):
         pca = decomposition.PCA(n_components=n_comp)
-        pca.fit(df)
+        pca.fit(self.df)
         return pca.mean_
 
-    def draw_pca_circles(self, df, n_comp):
+    def draw_pca_circles(self, n_comp):
         """
         Affiche les deux cercles de corrélation : individus et features.
         """
         pca = decomposition.PCA(n_components=n_comp)
-        pca.fit(df)
+        pca.fit(self.df)
         pcs = pca.components_
-        self.display_circles(pcs, n_comp, pca, [(0, 1)], labels=np.array(df.columns))
+        self.display_circles(pcs, n_comp, pca, [(0, 1)],
+                             labels=np.array(self.df.columns))
         plt.show()
 
-    def first_n_features_df(self, df, new_width):
-        if new_width > df.shape[1]:
+    def first_n_features_df(self, new_width):
+        if new_width > self.df.shape[1]:
             print('ERROR: New width greater than original dataframe width!')
             raise Exception()
-        if new_width > df.shape[0]:
+        if new_width > self.df.shape[0]:
             print('WARNING: New width is smaller than original dataframe length!')
-        feature_means = self.df_proper_values(df, new_width)
-        scree_df = pd.DataFrame({'feature': df.columns,
+        feature_means = self.df_proper_values(self.df, new_width)
+        scree_df = pd.DataFrame({'feature': self.df.columns,
                                  'mean': feature_means})
         scree_df = scree_df.sort_values(by='mean', ascending=False)
         best_scree_col = scree_df['feature'][:new_width]
-        return df[best_scree_col]
+        return self.df[best_scree_col]
 
-    def pca_reduced_df(self, df, n_comp):
+    def pca_reduced_df(self, n_comp):
         pca = PCA(n_components=n_comp)
-        new_df = pd.DataFrame(pca.fit_transform(df), index=df.index)
+        new_df = pd.DataFrame(pca.fit_transform(self.df), index=self.df.index)
         return new_df
 
 
 
 class PerformancesEvaluator():
-    def perf_n_pca(self, df, pca_values_list, n_clust):
+    def __init(self, df):
+        self.df = df
+
+    def perf_n_pca(self, pca_values_list, n_clust):
         """
         Returns dicts of metrics used for a list of values of principal
         components.
@@ -1017,9 +1014,9 @@ class PerformancesEvaluator():
         for pca_value in pca_values_list:
             print('Number of pca components:', pca_value)
             PcaClass = PcaDisplayer()
-            pca_df = PcaClass.first_n_features_df(df, pca_value)
+            pca_df = PcaClass.first_n_features_df(self.df, pca_value)
             # Apply k-means
-            Identifier = kmeans.KmeansIdentifier(pca_df)
+            Identifier = std_kmeans.KmeansIdentifier(pca_df)
             model = Identifier.get_model_and_add_labels(n_clust)
             [inertia, ch, db, sil] = Identifier.get_kmeans_metrics(model)
             in_dict[pca_value] = inertia
@@ -1028,13 +1025,13 @@ class PerformancesEvaluator():
             sil_dict[pca_value] = sil
         return [in_dict, ch_dict, db_dict, sil_dict]
 
-    def perf_n_clust(self, df, n_clust_list):
+    def perf_n_clust(self, n_clust_list):
         """
         Returns dataframes of metrics used for:
         - a list of values of principal components (columns)
         - a list of values for number of clusters (rows)
         """
-        df_width = df.shape[1]
+        df_width = self.df.shape[1]
         n_pca_list = [df_width,
                       int(df_width*0.5),
                       int(df_width*0.2),
@@ -1051,7 +1048,7 @@ class PerformancesEvaluator():
             [inertia,
              calinski_harabasz,
              davies_bouldin,
-             silhouette] = self.perf_n_pca(df, n_pca_list, n_clust)
+             silhouette] = self.perf_n_pca(self.df, n_pca_list, n_clust)
             in_df.loc[n_clust] = list(inertia.values())
             ch_df.loc[n_clust] = list(calinski_harabasz.values())
             db_df.loc[n_clust] = list(davies_bouldin.values())

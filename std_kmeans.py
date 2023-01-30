@@ -1,6 +1,8 @@
-# Author: B.Delorme
-# Creation date: 24th June 2021
-# Main objective: to provide a support for k-means clustering.
+"""
+Author: B.Delorme
+Creation date: 24th June 2021
+Main objective: to provide a support for k-means clustering.
+"""
 
 import matplotlib.pyplot as plt
 import numpy as np
