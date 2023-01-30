@@ -1,8 +1,6 @@
-"""
-Author: B.Delorme
-Creation date: 24th June 2021
-Main objective: to provide a support for k-means clustering.
-"""
+# Author: B.Delorme
+# Creation date: 24th June 2021
+# Main objective: to provide a support for k-means clustering.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,12 +22,13 @@ class KmeansIdentifier():
         model = model.fit(X)
         return model
 
-    def add_labels(self, n_clust):
+    def get_labels(self, n_clust):
         """
         Given a dataframe, fit k-means on it and adds labels as a new feature.
         """
         model = self.get_fitted_model(n_clust)
-        self.df['k-means label'] = model.labels_
+        labels = model.labels_
+        return labels
 
     def get_kmeans_metrics(self, model):
         labels = model.labels_
@@ -45,18 +44,17 @@ class KmeansIdentifier():
         Represents the projection in t-SNE with k-means labels as colors.
         """
         if 'k-means label' not in list(self.df.columns):
-            self.add_labels(n_clust)
-        tsne_df = self.df.drop('k-means label', axis=1)
-        tsne_res = TSNE(n_components=2, random_state=0).fit_transform(tsne_df)
-        kmeans_labels = np.expand_dims(self.df['k-means label'], axis=1)
+            labels = self.get_labels(n_clust)
+        tsne_res = TSNE(n_components=2, random_state=0).fit_transform(self.df)
+        kmeans_labels = np.expand_dims(labels, axis=1)
         tsne_res_add = np.append(tsne_res, kmeans_labels, axis=1)
         # Plot
         plt.title('k-means groups in t-SNE plan')
         sns.scatterplot(x=tsne_res_add[:, 0],
                         y=tsne_res_add[:, 1],
                         hue=tsne_res_add[:, 2],
-                        palette=sns.hls_palette(n_clust,
-                                                as_cmap=True),
+                        # palette=sns.hls_palette(n_clust,
+                        #                         as_cmap=True),
                         legend='full',
                         s=5)
 
