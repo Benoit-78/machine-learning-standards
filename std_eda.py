@@ -52,8 +52,13 @@ class Sampler():
 
 
 class EdaExplorator():
-    def __init__(self, df):
+    def __init__(self, df, dataset=None):
+        """
+        df: dataframe on which EDA is done.
+        dataset: set of dataframes on which EDA is done.
+        """
         self.df = df
+        self.dataset = dataset
 
     @property
     def computer(self):
@@ -330,76 +335,10 @@ class EdaExplorator():
             return weeknumber_dict
 
 
+
     class EdaDisplayer():
         def __init__(self, outer):
             self.outer = outer
-
-        def plot_feature_types(self):
-            types_dict = dict(Counter(self.outer.df.dtypes))
-            types = list(types_dict.keys())
-            counts = list(types_dict.values())
-            fig, ax = plt.subplots(figsize=(8, 5),
-                                   subplot_kw=dict(aspect="equal"))
-            ax.set_title('Feature types')
-            patches, texts, autotexts = ax.pie(counts, startangle=90, 
-                                               autopct=lambda x: round(x, 1))
-            ax.legend(patches, types, title='Types', loc="best")
-            plt.setp(autotexts, size=12, weight="bold")
-            plt.show()
-
-        def cardinality_per_column(self):
-            # Data to be plotted
-            cardinalities_df = pd.DataFrame(columns=['Feature', 'Cardinality'])
-            qualitative_df = self.outer.computer.qualitative_dataframe()
-            columns = list(qualitative_df.columns)
-            cardinalities = []
-            for column in columns:
-                cardinalities.append(qualitative_df[column].nunique())
-            cardinalities_df['Column'] = columns
-            cardinalities_df['Cardinality'] = cardinalities
-            cardinalities_df.sort_values(by='Cardinality',
-                                         ascending=True, inplace=True)
-            # Plot
-            plt.figure(figsize=(5, 5 + math.sqrt(5*cardinalities_df.shape[0])))
-            plt.xlim((0, 1.05 * max(cardinalities)))
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
-            plt.grid(axis='x')
-            plt.title('Cardinality per column')
-            plt.barh(cardinalities_df['Column'],
-                     cardinalities_df['Cardinality'],
-                     alpha=0.5, edgecolor='k')
-
-        def dataset_infos(self):
-            """Returns the main caracteristics of the given dataframe."""
-            # Create the columns of the info dataframe
-            info_df = pd.DataFrame(columns=['Rows', 'Features',
-                                            'Size', 'Memory usage (bytes)',
-                                            '% of NaN', '% of duplicates'],
-                                   index=[df.name for df in self.outer.dataset])
-            # Get the data
-            row_list, feature_list, size_list, nan_list, mem_list, dupl_list = [], [], [], [], [], []
-            for i, df in enumerate(self.dataset):
-                height = df.shape[0]
-                width = df.shape[1]
-                row_list.append(height)
-                feature_list.append(width)
-                size_list.append(df.size)
-                mem_list.append(df.memory_usage(deep=True).sum())
-                nan_list.append(self.nan_proportion(df))
-                dupl_list.append(self.duplicates_proportion(df))
-            # Constitute the dataframe
-            info_df['Rows'] = row_list
-            info_df['Features'] = feature_list
-            info_df['Size'] = size_list
-            info_df['Memory usage (bytes)'] = mem_list
-            info_df['% of NaN'] = nan_list
-            info_df['% of duplicates'] = dupl_list
-            # Compute the average values for each feature
-            average_list = []
-            for feat in info_df:
-                average_list.append(stat.mean(info_df[feat]))
-            info_df.loc['Average'] = average_list
-            return info_df.astype(int)
 
         def dataset_plot(self):
             """
@@ -408,6 +347,33 @@ class EdaExplorator():
             """
             info_df = self.dataset_infos()
             return info_df.style.bar(color='lightblue', align='mid')
+
+        def plot_nan_on_dataframe(self):
+            plt.figure(figsize=(10, 8))
+            plt.imshow(self.outer.df.isna(),
+                       aspect='auto',
+                       interpolation='nearest',
+                       cmap='gray')
+            plt.grid(axis='x')
+            plt.tick_params(axis="x", bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
+            plt.xlabel('Column number')
+            plt.ylabel('Sample number')
+
+        def plot_data_per_sample(self, chunk=20):
+            nan_sum = list(self.outer.df.notna().sum(axis=1))
+            width = self.outer.df.shape[1]
+            nan_proportions = [element / width for element in nan_sum]
+            nan_s = pd.Series(nan_proportions)
+            nan_s = nan_s.groupby(np.arange(len(nan_s)) // chunk).mean()
+            plt.figure(figsize=(15, 5))
+            plt.title('Data proportion per sample (non NaN)\nAverages every {} samples.'.format(chunk))
+            plt.grid(axis='x')
+            plt.grid(axis='y')
+            plt.ylim((0, 1.1))
+            x_axis = [i*chunk for i, element in enumerate(nan_s)]
+            plt.plot(x_axis, nan_s, linewidth=0,
+                     marker='o', markersize=1)
 
         def plot_data_per_column(self):
             # Form the dataframe
@@ -431,6 +397,72 @@ class EdaExplorator():
             plt.barh(proportions_df['Feature'],
                      proportions_df['NaN proportion'],
                      color=proportions_df['Color'], alpha=0.5, edgecolor='k')
+
+        def plot_memory_usage_per_column(self):
+            memory_df = pd.DataFrame(columns=['Feature', 'Memory', 'Color'])
+            for column in self.outer.df.columns:
+                if self.outer.df[column].dtype != object:
+                    color = 'blue'
+                else:
+                    color = 'orange'
+                memory = self.outer.df[column].memory_usage(index=True, deep=True)
+                # pandas returns bytes by defaults.
+                memory = memory / 1024**2
+                memory = round(memory, 2)
+                row = pd.DataFrame([[column, memory, color]],
+                                   columns=['Feature', 'Memory', 'Color'])
+                memory_df = pd.concat([memory_df, row])
+            memory_df = memory_df.sort_values(by='Memory', ascending=True)
+            total_memory = self.outer.df.memory_usage(index=True, deep=True).sum()
+            total_memory = total_memory / 1024**2
+            total_memory = round(total_memory , 1)
+            # Plot
+            plt.figure(figsize=(5, 5 + math.sqrt(5 * memory_df.shape[0])))
+            max_memory = max(memory_df['Memory'])
+            plt.xlim((0, 1.05 * max_memory))
+            plt.tick_params(axis="x", bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
+            plt.grid(axis='x')
+            plt.title('Memory usage per column (MB)\nTotal: {} MB'.format(total_memory))
+            plt.barh(memory_df['Feature'],
+                     memory_df['Memory'],
+                     color=memory_df['Color'],
+                     alpha=0.5, edgecolor='k')
+
+        def plot_cardinality_per_column(self):
+            # Data to be plotted
+            cardinalities_df = pd.DataFrame(columns=['Feature', 'Cardinality'])
+            qualitative_df = self.outer.computer.qualitative_dataframe()
+            columns = list(qualitative_df.columns)
+            cardinalities = []
+            for column in columns:
+                cardinalities.append(qualitative_df[column].nunique())
+            cardinalities_df['Column'] = columns
+            cardinalities_df['Cardinality'] = cardinalities
+            cardinalities_df.sort_values(by='Cardinality',
+                                         ascending=True, inplace=True)
+            # Plot
+            plt.figure(figsize=(5, 5 + math.sqrt(5*cardinalities_df.shape[0])))
+            plt.xlim((0, 1.05 * max(cardinalities)))
+            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.grid(axis='x')
+            plt.title('Cardinality per column')
+            plt.barh(cardinalities_df['Column'],
+                     cardinalities_df['Cardinality'],
+                     alpha=0.5, edgecolor='k')
+
+        def plot_feature_types(self):
+            types_dict = dict(Counter(self.outer.df.dtypes))
+            types = list(types_dict.keys())
+            counts = list(types_dict.values())
+            fig, ax = plt.subplots(figsize=(8, 5),
+                                   subplot_kw=dict(aspect="equal"))
+            ax.set_title('Feature types')
+            patches, texts, autotexts = ax.pie(counts, startangle=90,
+                                               autopct=lambda x: round(x, 1))
+            ax.legend(patches, types, title='Types', loc="best")
+            plt.setp(autotexts, size=12, weight="bold")
+            plt.show()
 
         def plot_feature(self, column, rate=0.001, quantile_sup=1, quantile_inf=0):
             feat_type = self.outer.computer.feature_type(column)
@@ -459,15 +491,6 @@ class EdaExplorator():
             else:
                 return 'Feature type error'
 
-        def plot_inflow_by_date(self, date_column):
-            aggregated_df = self.outer.df.copy()
-            aggregated_df['Count by date'] = [1] * aggregated_df.shape[0]
-            aggregated_df = aggregated_df.groupby(by=date_column).sum()
-            aggregated_df['Cumulated sum'] = aggregated_df['Count by date'].cumsum()
-            x = list(aggregated_df.index)
-            plt.title('Flow of samples over time')
-            plt.fill_between(x, aggregated_df['Cumulated sum'])
-
         def plot_feature_evolution_per_datetime(self, column, date_column):
             featuretype = self.outer.computer.feature_type(column)
             plt.title('Feature \'{}\' evolution over time'.format(column))
@@ -491,63 +514,14 @@ class EdaExplorator():
             else:
                 return 'Feature type error'
 
-        def plot_nan_on_dataset(self):
-            plt.figure(figsize=(10, 8))
-            plt.imshow(self.outer.df.isna(),
-                       aspect='auto',
-                       interpolation='nearest',
-                       cmap='gray')
-            plt.grid(axis='x')
-            plt.tick_params(axis="x", bottom=True, top=True,
-                            labelbottom=True, labeltop=True)
-            plt.xlabel('Column number')
-            plt.ylabel('Sample number')
-
-        def plot_data_per_sample(self, chunk=20):
-            nan_sum = list(self.outer.df.notna().sum(axis=1))
-            width = self.outer.df.shape[1]
-            nan_proportions = [element / width for element in nan_sum]
-            nan_s = pd.Series(nan_proportions)
-            nan_s = nan_s.groupby(np.arange(len(nan_s)) // chunk).mean()
-            plt.figure(figsize=(15, 5))
-            plt.title('Data proportion per sample (non NaN)\nAverages every {} samples.'.format(chunk))
-            plt.grid(axis='x')
-            plt.grid(axis='y')
-            plt.ylim((0, 1.1))
-            x_axis = [i*chunk for i, element in enumerate(nan_s)]
-            plt.plot(x_axis, nan_s, linewidth=0,
-                     marker='o', markersize=1)
-
-        def memory_usage_per_column(self):
-            memory_df = pd.DataFrame(columns=['Feature', 'Memory', 'Color'])
-            for column in self.outer.df.columns:
-                if self.outer.df[column].dtype != object:
-                    color = 'blue'
-                else:
-                    color = 'orange'
-                memory = self.outer.df[column].memory_usage(index=True, deep=True)
-                # pandas returns bytes by defaults.
-                memory = memory / 1024**2
-                memory = round(memory, 2)
-                row = pd.DataFrame([[column, memory, color]],
-                                   columns=['Feature', 'Memory', 'Color'])
-                memory_df = pd.concat([memory_df, row])
-            memory_df = memory_df.sort_values(by='Memory', ascending=True)
-            total_memory = self.outer.df.memory_usage(index=True, deep=True).sum()
-            total_memory = total_memory / 1024**2
-            total_memory = round(total_memory , 1)
-            # Plot
-            plt.figure(figsize=(5, 5 + math.sqrt(5 * memory_df.shape[0])))
-            max_memory = max(memory_df['Memory']) 
-            plt.xlim((0, 1.05 * max_memory))
-            plt.tick_params(axis="x", bottom=True, top=True,
-                            labelbottom=True, labeltop=True)
-            plt.grid(axis='x')
-            plt.title('Memory usage per column (MB)\nTotal: {} MB'.format(total_memory))
-            plt.barh(memory_df['Feature'],
-                     memory_df['Memory'],
-                     color=memory_df['Color'],
-                     alpha=0.5, edgecolor='k')
+        def plot_inflow_by_date(self, date_column):
+            aggregated_df = self.outer.df.copy()
+            aggregated_df['Count by date'] = [1] * aggregated_df.shape[0]
+            aggregated_df = aggregated_df.groupby(by=date_column).sum()
+            aggregated_df['Cumulated sum'] = aggregated_df['Count by date'].cumsum()
+            x = list(aggregated_df.index)
+            plt.title('Flow of samples over time')
+            plt.fill_between(x, aggregated_df['Cumulated sum'])
 
         def plot_target_proportions(self, target_name, column, targets=[0, 1]):
             df_0 = self.df[self.df[target_name] == targets[0]]
@@ -556,40 +530,14 @@ class EdaExplorator():
             self.plot_feature(df_0, column)
             self.plot_feature(df_1, column)
 
-        def qualitative_correlations_df(self, column_1, column_2, replace_0=False):
-            """
-            Returns a table of the correlations between categories of two qualitative
-            series.
-            """
-            def correlations_dataframe(column_1, column_2):
-                clean_df = self.outer.df[[column_1, column_2]].dropna()
-                serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
-                counter_1, counter_2 = dict(Counter(serie_1)), dict(Counter(serie_2))
-                keys_1, keys_2 = list(counter_1.keys()), list(counter_2.keys())
-                correlations_df = pd.DataFrame(columns=keys_1, index=keys_2)
-                for key_1 in keys_1:
-                    t_list = []
-                    for key_2 in keys_2:
-                        temp_df = clean_df[clean_df[column_1]==key_1]
-                        temp_df = temp_df[clean_df[column_2]==key_2]
-                        t_list.append(temp_df.shape[0])
-                    correlations_df[key_1] = t_list
-                return correlations_df
-
-            def min_and_max(correlations_df):
-                v_min = min(list(correlations_df.min()))
-                v_max = max(list(correlations_df.max()))
-                if v_min > 0:
-                    v_min = 0
-                if self.outer.computer.df_max(correlations_df) < 0:
-                    v_max = 0
-                return v_min, v_max
-
-            correlations_df = correlations_dataframe(column_1, column_2)
-            v_min, v_max = min_and_max(correlations_df)
-            if replace_0:
-                correlations_df = correlations_df.replace(0, '')
-            return correlations_df.style.bar(color='lightblue', vmin=v_min, vmax=v_max)
+        def train_test_proportion(self, train_df, test_df):
+            """Plot the relative proportion of train and test set."""
+            plt.title('Train / test proportion')
+            plt.pie(x=[train_df.shape[0], test_df.shape[0]],
+                    labels=['Train set', 'Test set'],
+                    autopct=lambda x: round(x, 1),
+                    startangle=90,
+                    wedgeprops={'edgecolor': 'k', 'linewidth': 1})
 
         def qualitative_heatmap(self, featuretype='qualitative'):
             def cramers_v(serie_1, serie_2):
@@ -651,12 +599,6 @@ class EdaExplorator():
             heatmap.set_title('Qualitative correlations heatmap',
                               fontdict={'fontsize': 15}, pad=12)
 
-        def quantitative_correlations_pairplot(self):
-            sns.pairplot(self.outer.computer.quantitative_dataframe(),
-                         #height=1.5,
-                         #plot_kws={'s':2, 'alpha':0.2}
-                         )
-
         def quantitative_heatmap(self):
             quant_df = self.outer.computer.quantitative_dataframe()
             corr_df = quant_df.corr()
@@ -679,14 +621,46 @@ class EdaExplorator():
             heatmap.set_title('Quantitative correlations heatmap',
                               fontdict={'fontsize': 15}, pad=12)
 
-        def train_test_proportion(self, train_df, test_df):
-            """Plot the relative proportion of train and test set."""
-            plt.title('Train / test proportion')
-            plt.pie(x=[train_df.shape[0], test_df.shape[0]],
-                    labels=['Train set', 'Test set'],
-                    autopct=lambda x: round(x, 1),
-                    startangle=90,
-                    wedgeprops={'edgecolor': 'k', 'linewidth': 1})
+        def quantitative_correlations_pairplot(self):
+            sns.pairplot(self.outer.computer.quantitative_dataframe(),
+                         #height=1.5,
+                         #plot_kws={'s':2, 'alpha':0.2}
+                         )
+
+        def qualitative_correlations_df(self, column_1, column_2, replace_0=False):
+            """
+            Returns a table of the correlations between categories of two qualitative
+            series.
+            """
+            def correlations_dataframe(column_1, column_2):
+                clean_df = self.outer.df[[column_1, column_2]].dropna()
+                serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
+                counter_1, counter_2 = dict(Counter(serie_1)), dict(Counter(serie_2))
+                keys_1, keys_2 = list(counter_1.keys()), list(counter_2.keys())
+                correlations_df = pd.DataFrame(columns=keys_1, index=keys_2)
+                for key_1 in keys_1:
+                    t_list = []
+                    for key_2 in keys_2:
+                        temp_df = clean_df[clean_df[column_1]==key_1]
+                        temp_df = temp_df[clean_df[column_2]==key_2]
+                        t_list.append(temp_df.shape[0])
+                    correlations_df[key_1] = t_list
+                return correlations_df
+
+            def min_and_max(correlations_df):
+                v_min = min(list(correlations_df.min()))
+                v_max = max(list(correlations_df.max()))
+                if v_min > 0:
+                    v_min = 0
+                if self.outer.computer.df_max(correlations_df) < 0:
+                    v_max = 0
+                return v_min, v_max
+
+            correlations_df = correlations_dataframe(column_1, column_2)
+            v_min, v_max = min_and_max(correlations_df)
+            if replace_0:
+                correlations_df = correlations_df.replace(0, '')
+            return correlations_df.style.bar(color='lightblue', vmin=v_min, vmax=v_max)
 
         def violinplot(self, column_1, column_2):
             def median_values(col_quant, col_qual):
@@ -705,6 +679,39 @@ class EdaExplorator():
                            y=qualitative_column,
                            data=self.outer.df[[quantitative_column,
                                                qualitative_column]])
+
+        def dataset_infos(self):
+            """Returns the main caracteristics of the given dataframe."""
+            # Create the columns of the info dataframe
+            info_df = pd.DataFrame(columns=['Rows', 'Features',
+                                            'Size', 'Memory usage (bytes)',
+                                            '% of NaN', '% of duplicates'],
+                                   index=[df.name for df in self.outer.dataset])
+            # Get the data
+            row_list, feature_list, size_list, nan_list, mem_list, dupl_list = [], [], [], [], [], []
+            for i, df in enumerate(self.dataset):
+                height = df.shape[0]
+                width = df.shape[1]
+                row_list.append(height)
+                feature_list.append(width)
+                size_list.append(df.size)
+                mem_list.append(df.memory_usage(deep=True).sum())
+                nan_list.append(self.nan_proportion(df))
+                dupl_list.append(self.duplicates_proportion(df))
+            # Constitute the dataframe
+            info_df['Rows'] = row_list
+            info_df['Features'] = feature_list
+            info_df['Size'] = size_list
+            info_df['Memory usage (bytes)'] = mem_list
+            info_df['% of NaN'] = nan_list
+            info_df['% of duplicates'] = dupl_list
+            # Compute the average values for each feature
+            average_list = []
+            for feat in info_df:
+                average_list.append(stat.mean(info_df[feat]))
+            info_df.loc['Average'] = average_list
+            return info_df.astype(int)
+
 
 
     class TimestampDisplayer():
