@@ -24,8 +24,8 @@ from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from . import q7
-from . import kmeans
+from q7 import std_q7 as q7
+from . import std_kmeans
 
 
 
@@ -842,7 +842,7 @@ class FeatureEngineer():
         scaled_df = pd.DataFrame(scaled_df, columns=quant_columns)
         for column in quant_columns:
             self.df[column] = list(scaled_df[column])
-        return self.
+        return self.df
 
     def split_and_scale(self, target):
         X = self.df.drop(target, axis=1)
