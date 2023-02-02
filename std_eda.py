@@ -25,7 +25,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from q7 import std_q7 as q7
-from . import std_kmeans
+import std_kmeans
 
 
 
@@ -367,31 +367,58 @@ class EdaExplorator():
             nan_s = pd.Series(nan_proportions)
             nan_s = nan_s.groupby(np.arange(len(nan_s)) // chunk).mean()
             plt.figure(figsize=(15, 5))
-            plt.title('Data proportion per sample (non NaN)\nAverages every {} samples.'.format(chunk))
+            plt.title('Data proportion per sample (non NaN)\nAverages on {} samples.'.format(chunk))
             plt.grid(axis='x')
             plt.grid(axis='y')
             plt.ylim((0, 1.1))
-            x_axis = [i*chunk for i, element in enumerate(nan_s)]
+            x_axis = [i*chunk for i, _ in enumerate(nan_s)]
             plt.plot(x_axis, nan_s, linewidth=0,
+                     marker='o', markersize=1)
+
+        def plot_memory_usage_per_sample(self, chunk=20):
+            memories = []
+            for i in range(self.outer.df.shape[0]):
+                memory = self.outer.df.iloc[i].memory_usage(index=True,
+                                                            deep=True)
+                # pandas returns bytes by defaults.
+                memory = memory / 1024 ** 2
+                memories.append(memory)
+            # Average
+            memories = pd.Series(memories)
+            memories = memories.groupby(np.arange(memories.shape[0]) // chunk).mean()
+            # Plot
+            plt.figure(figsize=(15, 5))
+            plt.title('Memory per sample\nAverages on {} samples.'.format(chunk))
+            plt.grid(axis='x')
+            plt.grid(axis='y')
+            plt.ylim((0, 1.1 * max(memories)))
+            x_axis = [i * chunk for i, _ in enumerate(memories)]
+            plt.plot(x_axis, memories, linewidth=0,
                      marker='o', markersize=1)
 
         def plot_data_per_column(self):
             # Form the dataframe
-            proportions_df = pd.DataFrame(columns=['Feature', 'NaN proportion', 'Color'])
+            proportions_df = pd.DataFrame(columns=['Feature',
+                                                   'NaN proportion',
+                                                   'Color'])
             for column in self.outer.df.columns:
                 if self.outer.df[column].dtype != object:
                     color = 'blue'
                 else:
                     color = 'orange'
                 non_nan_proportion = self.outer.df[column].notna().sum() / self.outer.df.shape[0] * 100
-                proportions_df.loc[proportions_df.shape[0]] = [column, non_nan_proportion, color]
+                proportions_df.loc[proportions_df.shape[0]] = [column,
+                                                               non_nan_proportion,
+                                                               color]
             # Filter out columns without any NaN value
             proportions_df = proportions_df[proportions_df['NaN proportion'] != 100]
-            proportions_df.sort_values(by='NaN proportion', ascending=True, inplace=True)
+            proportions_df.sort_values(by='NaN proportion',
+                                       ascending=False, inplace=True)
             # Plot
             plt.figure(figsize=(5, 5 + math.sqrt(5 * proportions_df.shape[0])))
             plt.xlim((0, 1.05 * 100))
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.tick_params(axis="x", bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
             plt.grid(axis='x')
             plt.title('Proportion of non-NaN data \n (complete columns are not represented)')
             plt.barh(proportions_df['Feature'],
@@ -718,7 +745,31 @@ class EdaExplorator():
         def __init__(self, outer):
             self.outer = outer
 
+        def plot_date_formats(self, date_columns):
+            """
+            Display the different formats of date in the dataframe.
+            """
+            spec_char = ['/', ':']
+            french_months = {'January': 'Janvier',
+                             'February': 'Février',
+                             'March': 'Mars',
+                             'April': 'Avril',
+                             'May': 'Mai',
+                             'June': 'Juin',
+                             'July': 'Juillet',
+                             'August': 'Août',
+                             'September': 'Septembre',
+                             'October': 'Octobre',
+                             'November': 'Novembre',
+                             'December': 'Décembre'}
+            temp_df = self.df.sample(frac=0.1)
+            for column in date_columns:
+                print(column)
+
         def plot_occurences(self, categories_dict, time_period, date_column):
+            """
+            Back-end method.
+            """
             categories = list(categories_dict.keys())
             occurences = list(categories_dict.values())
             plt.title('Samples occurence over {}s, \ncolumn \'{}\''.format(time_period,
