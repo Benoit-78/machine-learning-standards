@@ -1,8 +1,21 @@
+"""
+Provide general information on program execution (run time, memory, ...)
+"""
+
 import time
 from datetime import datetime
 import tracemalloc
 
 def time_log(start_time):
+    """
+    Parameters
+    ----------
+    start_time : time.time()
+        Time at the start of the program.
+    Returns
+    -------
+        Divers information on program execution length & memory taken.
+    """
     # Run time
     log_messages = ['', '=', "  Programm successfully executed.  "]
     time_delta = round(time.time() - start_time, 1)
