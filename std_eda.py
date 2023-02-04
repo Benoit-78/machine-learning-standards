@@ -8,15 +8,16 @@ Main objective: provide a support for exploratory data analysis.
 
 import glob
 import math
+import statistics as stat
+
+from collections import Counter
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats as ss
 import seaborn as sns
-import statistics as stat
 
-
-from collections import Counter
 from matplotlib.collections import LineCollection
 from sklearn import decomposition
 from sklearn.decomposition import PCA
@@ -25,16 +26,35 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from q7 import std_q7 as q7
-from . import std_kmeans
+import std_kmeans
 
 
 
 class Sampler():
+    """
+    Provide sampling strategies.
+    """
     def __init__(self, df, fraction):
+        """
+        df :
+            pd.DataFrame
+        fraction : float in [0; 1]
+            Fraction of the dataframe taken.
+        """
         self.df = df
         self.frac = fraction
 
     def stratified_sampling_df(self, feature):
+        """
+        Parameters
+        ----------
+        feature : string
+
+        Returns
+        -------
+        new_df : pd.DataFrame
+            Stratified dataframe.
+        """
         categories_counter =  self.df[feature].value_counts(normalize=True)
         categories = list(categories_counter.index)
         new_df = pd.DataFrame()
@@ -45,6 +65,17 @@ class Sampler():
         return new_df
 
     def periodic_sampling_df(self, period):
+        """
+        Parameters
+        ----------
+        period : int
+            Interval between each sample.
+
+        Returns
+        -------
+        new_df :pd.DataFrame
+            Periodic sampled dataframe.
+        """
         index_list = list(range(0, self.df.shape[0], period))
         new_df = self.df.iloc[index_list]
         return new_df
@@ -54,8 +85,10 @@ class Sampler():
 class EdaExplorator():
     def __init__(self, df, dataset=None):
         """
-        df: dataframe on which EDA is done.
-        dataset: set of dataframes on which EDA is done.
+        df : pd.Dataframe
+            Dataframe on which EDA is done.
+        dataset : dict
+            Set of dataframes on which EDA is done.
         """
         self.df = df
         self.dataset = dataset
@@ -85,7 +118,7 @@ class EdaExplorator():
             """Select only the binary features of the given dataframe."""
             qualitative_df = pd.DataFrame()
             for column in self.outer.df.columns:
-                feat_type = self.feature_type(self.outer.df, column)
+                feat_type = self.feature_type(column)
                 if feat_type == 'binary':
                     qualitative_df[column] = self.outer.df[column]
             return qualitative_df
@@ -113,7 +146,7 @@ class EdaExplorator():
             """
             Returns the feature descriptions of the given dataframe.
             - 'df' is the dataframe whose feature descriptions are wanted.
-            - 'descr_df' is the dataframe that contains the feature descriptions.
+            - 'descr_df' is the dataframe containing the feature descriptions.
             """
             filtered_df = descr_df[descr_df[filter_feat] == df.name + ext]
             return filtered_df
@@ -198,7 +231,9 @@ class EdaExplorator():
             return df
 
         def qualitative_dataframe(self):
-            """Select only the qualitative features of the given dataframe."""
+            """
+            Select only the qualitative features of the given dataframe.
+            """
             qualitative_df = pd.DataFrame()
             for column in self.outer.df.columns:
                 feat_type = self.feature_type(column)
@@ -207,25 +242,15 @@ class EdaExplorator():
             return qualitative_df
 
         def quantitative_dataframe(self):
-            """Select only the quantitative features of the given dataframe."""
+            """
+            Select only the quantitative features of the given dataframe.
+            """
             quantitative_df = pd.DataFrame()
             for column in self.outer.df.columns:
                 feat_type = self.feature_type(column)
                 if feat_type == 'quantitative':
                     quantitative_df[column] = self.outer.df[column]
             return quantitative_df
-
-        def readcsv(self, my_path, date_feature=[], dtype_dict={}, nan_values=[],
-                    true_values=[], false_values=[], nrows=500):
-            """Standardized csv file reading method."""
-            df = pd.read_csv(my_path,
-                             parse_dates=date_feature,
-                             dtype=dtype_dict,
-                             na_value=nan_values,
-                             true_values=true_values,
-                             false_values=false_values,
-                             nrows=nrows)
-            return df
 
         def fillna_with_trimean(self, column):
             print(self.outer.df.shape)
@@ -250,7 +275,8 @@ class EdaExplorator():
             month_series = self.outer.df[date_column].dt.month
             month_dict = dict(month_series.value_counts())
             month_dict = {month: count for month, count
-                          in sorted(month_dict.items(), key=lambda item: item[0])}
+                          in sorted(month_dict.items(),
+                                    key=lambda item: item[0])}
             month_dict['January'] = month_dict.pop(1)
             month_dict['February'] = month_dict.pop(2)
             month_dict['March'] = month_dict.pop(3)
@@ -264,26 +290,29 @@ class EdaExplorator():
             month_dict['November'] = month_dict.pop(11)
             month_dict['December'] = month_dict.pop(12)
             return month_dict
-        
+
         def weeknumber_occurences(self, date_column):
-            weeknumber_series = self.outer.df[date_column].dt.isocalendar().week
-            weeknumber_dict = dict(weeknumber_series.value_counts())
+            weeknb_series = self.outer.df[date_column].dt.isocalendar().week
+            weeknumber_dict = dict(weeknb_series.value_counts())
             weeknumber_dict = {weeknumber: count for weeknumber, count
-                          in sorted(weeknumber_dict.items(), key=lambda item: item[0])}
+                               in sorted(weeknumber_dict.items(),
+                                         key=lambda item: item[0])}
             return weeknumber_dict
 
         def hour_occurences(self, date_column):
             hour_series = self.outer.df[date_column].dt.hour
             hour_dict = dict(hour_series.value_counts())
             hour_dict = {hour: count for hour, count
-                          in sorted(hour_dict.items(), key=lambda item: item[0])}
+                          in sorted(hour_dict.items(),
+                                    key=lambda item: item[0])}
             return hour_dict
 
         def weekday_occurences(self, date_column):
             weekday_series = self.outer.df[date_column].dt.weekday
             weekday_dict = dict(weekday_series.value_counts())
             weekday_dict = {weekday: count for weekday, count
-                          in sorted(weekday_dict.items(), key=lambda item: item[0])}
+                          in sorted(weekday_dict.items(),
+                                    key=lambda item: item[0])}
             weekday_dict['Monday'] = weekday_dict.pop(0)
             weekday_dict['Tuesday'] = weekday_dict.pop(1)
             weekday_dict['Wednesday'] = weekday_dict.pop(2)
@@ -297,7 +326,8 @@ class EdaExplorator():
             day_series = self.outer.df[date_column].dt.day
             day_dict = dict(day_series.value_counts())
             day_dict = {day: count for day, count
-                          in sorted(day_dict.items(), key=lambda item: item[0])}
+                          in sorted(day_dict.items(),
+                                    key=lambda item: item[0])}
             return day_dict
 
         def average_by_month(self, value_column, date_column):
@@ -331,7 +361,8 @@ class EdaExplorator():
             weeknumbers = temp_df['weeknumber']
             averages = temp_df[value_column]
             weeknumber_dict = {weeknumber: average
-                               for weeknumber, average in zip(weeknumbers, averages)}
+                               for weeknumber, average in zip(weeknumbers,
+                                                              averages)}
             return weeknumber_dict
 
 
@@ -342,7 +373,7 @@ class EdaExplorator():
 
         def dataset_plot(self):
             """
-            Plot the main caracteristics of each dataframe of the given dataset.
+            Plot main caracteristics of each dataframe of the given dataset.
             Enable comparison.
             """
             info_df = self.dataset_infos()
@@ -367,7 +398,9 @@ class EdaExplorator():
             nan_s = pd.Series(nan_proportions)
             nan_s = nan_s.groupby(np.arange(len(nan_s)) // chunk).mean()
             plt.figure(figsize=(15, 5))
-            plt.title('Data proportion per sample (non NaN)\nAverages every {} samples.'.format(chunk))
+            msg = 'Data proportion per sample (non NaN)'
+            msg += '\nAverages every {} samples.'
+            plt.title(msg.format(chunk))
             plt.grid(axis='x')
             plt.grid(axis='y')
             plt.ylim((0, 1.1))
@@ -377,23 +410,32 @@ class EdaExplorator():
 
         def plot_data_per_column(self):
             # Form the dataframe
-            proportions_df = pd.DataFrame(columns=['Feature', 'NaN proportion', 'Color'])
+            proportions_df = pd.DataFrame(columns=['Feature',
+                                                   'NaN proportion',
+                                                   'Color'])
             for column in self.outer.df.columns:
                 if self.outer.df[column].dtype != object:
                     color = 'blue'
                 else:
                     color = 'orange'
-                non_nan_proportion = self.outer.df[column].notna().sum() / self.outer.df.shape[0] * 100
-                proportions_df.loc[proportions_df.shape[0]] = [column, non_nan_proportion, color]
+                nan_total = self.outer.df[column].notna().sum()
+                df_shape = self.outer.df.shape[0]
+                non_nan_prop = nan_total / df_shape * 100
+                proportions_df.loc[proportions_df.shape[0]] = [column,
+                                                               non_nan_prop,
+                                                               color]
             # Filter out columns without any NaN value
             proportions_df = proportions_df[proportions_df['NaN proportion'] != 100]
-            proportions_df.sort_values(by='NaN proportion', ascending=True, inplace=True)
+            proportions_df.sort_values(by='NaN proportion',
+                                       ascending=True, inplace=True)
             # Plot
             plt.figure(figsize=(5, 5 + math.sqrt(5 * proportions_df.shape[0])))
             plt.xlim((0, 1.05 * 100))
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.tick_params(axis="x",
+                            bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
             plt.grid(axis='x')
-            plt.title('Proportion of non-NaN data \n (complete columns are not represented)')
+            plt.title('Proportion of non-NaN data \n (complete columns not represented)')
             plt.barh(proportions_df['Feature'],
                      proportions_df['NaN proportion'],
                      color=proportions_df['Color'], alpha=0.5, edgecolor='k')
@@ -405,7 +447,8 @@ class EdaExplorator():
                     color = 'blue'
                 else:
                     color = 'orange'
-                memory = self.outer.df[column].memory_usage(index=True, deep=True)
+                memory = self.outer.df[column].memory_usage(index=True,
+                                                            deep=True)
                 # pandas returns bytes by defaults.
                 memory = memory / 1024**2
                 memory = round(memory, 2)
@@ -413,7 +456,8 @@ class EdaExplorator():
                                    columns=['Feature', 'Memory', 'Color'])
                 memory_df = pd.concat([memory_df, row])
             memory_df = memory_df.sort_values(by='Memory', ascending=True)
-            total_memory = self.outer.df.memory_usage(index=True, deep=True).sum()
+            total_memory = self.outer.df.memory_usage(index=True,
+                                                      deep=True).sum()
             total_memory = total_memory / 1024**2
             total_memory = round(total_memory , 1)
             # Plot
@@ -423,7 +467,8 @@ class EdaExplorator():
             plt.tick_params(axis="x", bottom=True, top=True,
                             labelbottom=True, labeltop=True)
             plt.grid(axis='x')
-            plt.title('Memory usage per column (MB)\nTotal: {} MB'.format(total_memory))
+            msg = 'Memory usage per column (MB)\nTotal: {} MB'
+            plt.title(msg.format(total_memory))
             plt.barh(memory_df['Feature'],
                      memory_df['Memory'],
                      color=memory_df['Color'],
@@ -444,7 +489,9 @@ class EdaExplorator():
             # Plot
             plt.figure(figsize=(5, 5 + math.sqrt(5*cardinalities_df.shape[0])))
             plt.xlim((0, 1.05 * max(cardinalities)))
-            plt.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labeltop=True)
+            plt.tick_params(axis="x",
+                            bottom=True, top=True,
+                            labelbottom=True, labeltop=True)
             plt.grid(axis='x')
             plt.title('Cardinality per column')
             plt.barh(cardinalities_df['Column'],
@@ -455,16 +502,16 @@ class EdaExplorator():
             types_dict = dict(Counter(self.outer.df.dtypes))
             types = list(types_dict.keys())
             counts = list(types_dict.values())
-            fig, ax = plt.subplots(figsize=(8, 5),
+            _, ax = plt.subplots(figsize=(8, 5),
                                    subplot_kw=dict(aspect="equal"))
             ax.set_title('Feature types')
-            patches, texts, autotexts = ax.pie(counts, startangle=90,
+            patches, _, autotexts = ax.pie(counts, startangle=90,
                                                autopct=lambda x: round(x, 1))
             ax.legend(patches, types, title='Types', loc="best")
             plt.setp(autotexts, size=12, weight="bold")
             plt.show()
 
-        def plot_feature(self, column, rate=0.001, quantile_sup=1, quantile_inf=0):
+        def plot_feature(self, column, rate=0.001, quant_sup=1, quant_inf=0):
             feat_type = self.outer.computer.feature_type(column)
             if feat_type in ['binary', 'low_cardinality']:
                 graph = q7.PieChart(self.outer.df, column, rate)
@@ -473,7 +520,8 @@ class EdaExplorator():
                 graph = q7.Pareto(self.outer.df, column, rate)
                 graph.plot()
             else:
-                graph = q7.Histogram(self.outer.df, column, quantile_sup, quantile_inf)
+                graph = q7.Histogram(self.outer.df, column,
+                                     quant_sup, quant_inf)
                 graph.plot()
             plt.show()
 
@@ -484,10 +532,14 @@ class EdaExplorator():
                 y = list(self.outer.df[column].cumsum())
                 plt.bar(list(range(0, len(y))), height=y, alpha=0.6)
             elif featuretype in ['low_cardinality', 'qualitative']:
-                aggregated_df = pd.get_dummies(self.outer.df[column], columns=[column])
-                y = [aggregated_df[col].cumsum() for col in aggregated_df.columns]
+                aggreg_df = pd.get_dummies(self.outer.df[column],
+                                           columns=[column])
+                y = [aggreg_df[col].cumsum() for col in aggreg_df.columns]
                 y = sorted(y, key=lambda element: max(element), reverse=True)
-                plt.stackplot(list(range(0, len(self.outer.df))), y, alpha=0.6, labels=aggregated_df.columns)
+                plt.stackplot(list(range(0, self.outer.df.shape[0])),
+                              y,
+                              alpha=0.6,
+                              labels=aggreg_df.columns)
             else:
                 return 'Feature type error'
 
@@ -515,18 +567,19 @@ class EdaExplorator():
                 return 'Feature type error'
 
         def plot_inflow_by_date(self, date_column):
-            aggregated_df = self.outer.df.copy()
-            aggregated_df['Count by date'] = [1] * aggregated_df.shape[0]
-            aggregated_df = aggregated_df.groupby(by=date_column).sum()
-            aggregated_df['Cumulated sum'] = aggregated_df['Count by date'].cumsum()
-            x = list(aggregated_df.index)
+            aggreg_df = self.outer.df.copy()
+            aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
+            aggreg_df = aggreg_df.groupby(by=date_column).sum()
+            aggreg_df['Cumulated sum'] = aggreg_df['Count by date'].cumsum()
+            x = list(aggreg_df.index)
             plt.title('Flow of samples over time')
-            plt.fill_between(x, aggregated_df['Cumulated sum'])
+            plt.fill_between(x, aggreg_df['Cumulated sum'])
 
-        def plot_target_proportions(self, target_name, column, targets=[0, 1]):
-            df_0 = self.df[self.df[target_name] == targets[0]]
-            df_1 = self.df[self.df[target_name] == targets[1]]
-            self.plot_feature(self.df, column)
+        def plot_target_proportions(self, target_name, column):
+            targets=[0, 1]
+            df_0 = self.outer.df[self.outer.df[target_name] == targets[0]]
+            df_1 = self.outer.df[self.outer.df[target_name] == targets[1]]
+            self.plot_feature(self.outer.df, column)
             self.plot_feature(df_0, column)
             self.plot_feature(df_1, column)
 
@@ -569,7 +622,7 @@ class EdaExplorator():
                     for column_2 in qualitative_df.columns:
                         if column_2 in dynamic_columns_list:
                             correlation = cramers_v(qualitative_df[column_1],
-                                                         qualitative_df[column_2])
+                                                    qualitative_df[column_2])
                             correlations.append(correlation)
                         else:
                             correlations.append(np.nan)
@@ -593,9 +646,9 @@ class EdaExplorator():
             factor = 5 + math.sqrt(5 * corr_df.shape[0])
             plt.figure(figsize=(factor, factor))
             heatmap = sns.heatmap(corr_df,
-                                  annot=labels, mask=mask, square=True, center=0.5,
-                                  linewidths=.1, cmap="Blues", fmt='',
-                                  cbar_kws={'shrink':1.0})
+                                  annot=labels, mask=mask, square=True,
+                                  center=0.5, linewidths=.1, cmap="Blues",
+                                  fmt='', cbar_kws={'shrink':1.0})
             heatmap.set_title('Qualitative correlations heatmap',
                               fontdict={'fontsize': 15}, pad=12)
 
@@ -615,8 +668,8 @@ class EdaExplorator():
                               )
             plt.figure(figsize=(n_columns * 3, n_columns * 2 / 3))
             heatmap = sns.heatmap(corr_df,
-                                  annot=labels, mask=mask, square=True, center=0,
-                                  linewidths=.1, cmap="vlag", fmt='',
+                                  annot=labels, mask=mask, square=True,
+                                  center=0, linewidths=.1, cmap="vlag", fmt='',
                                   cbar_kws={'shrink':1.0})
             heatmap.set_title('Quantitative correlations heatmap',
                               fontdict={'fontsize': 15}, pad=12)
@@ -629,13 +682,14 @@ class EdaExplorator():
 
         def qualitative_correlations_df(self, column_1, column_2, replace_0=False):
             """
-            Returns a table of the correlations between categories of two qualitative
-            series.
+            Returns a table of the correlations between categories of two
+            qualitative series.
             """
             def correlations_dataframe(column_1, column_2):
                 clean_df = self.outer.df[[column_1, column_2]].dropna()
                 serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
-                counter_1, counter_2 = dict(Counter(serie_1)), dict(Counter(serie_2))
+                counter_1 = dict(Counter(serie_1))
+                counter_2 = dict(Counter(serie_2))
                 keys_1, keys_2 = list(counter_1.keys()), list(counter_2.keys())
                 correlations_df = pd.DataFrame(columns=keys_1, index=keys_2)
                 for key_1 in keys_1:
@@ -660,21 +714,14 @@ class EdaExplorator():
             v_min, v_max = min_and_max(correlations_df)
             if replace_0:
                 correlations_df = correlations_df.replace(0, '')
-            return correlations_df.style.bar(color='lightblue', vmin=v_min, vmax=v_max)
+            return correlations_df.style.bar(color='lightblue',
+                                             vmin=v_min, vmax=v_max)
 
         def violinplot(self, column_1, column_2):
-            def median_values(col_quant, col_qual):
-                categories = self.outer.df[col_qual].unique()
-                medians = [stat.median(self.outer.df[self.outer.df[col_qual] == category][col_quant])
-                           for category in categories]
-                return medians
-
             quantitative_column = [col for col in [column_1, column_2]
                                    if self.outer.df[col].dtype != 'O'][0]
             qualitative_column = [col for col in [column_1, column_2]
                                   if self.outer.df[col].dtype == 'O'][0]
-            # medians = median_values(quantitative_column, qualitative_column)
-            # plt.plot(medians, list(range(0, len(qualitative_column)-2)), color='r')
             sns.violinplot(x=quantitative_column,
                            y=qualitative_column,
                            data=self.outer.df[[quantitative_column,
@@ -686,18 +733,24 @@ class EdaExplorator():
             info_df = pd.DataFrame(columns=['Rows', 'Features',
                                             'Size', 'Memory usage (bytes)',
                                             '% of NaN', '% of duplicates'],
-                                   index=[df.name for df in self.outer.dataset])
+                                   index=[df.name
+                                          for df in self.outer.dataset])
             # Get the data
-            row_list, feature_list, size_list, nan_list, mem_list, dupl_list = [], [], [], [], [], []
-            for i, df in enumerate(self.dataset):
+            row_list = []
+            feature_list = []
+            size_list = []
+            nan_list = []
+            mem_list = []
+            dupl_list = []
+            for df in self.outer.dataset:
                 height = df.shape[0]
                 width = df.shape[1]
                 row_list.append(height)
                 feature_list.append(width)
                 size_list.append(df.size)
                 mem_list.append(df.memory_usage(deep=True).sum())
-                nan_list.append(self.nan_proportion(df))
-                dupl_list.append(self.duplicates_proportion(df))
+                nan_list.append(self.outer.computer.nan_proportion(df))
+                dupl_list.append(self.outer.computer.duplicates_proportion(df))
             # Constitute the dataframe
             info_df['Rows'] = row_list
             info_df['Features'] = feature_list
@@ -721,42 +774,42 @@ class EdaExplorator():
         def plot_occurences(self, categories_dict, time_period, date_column):
             categories = list(categories_dict.keys())
             occurences = list(categories_dict.values())
-            plt.title('Samples occurence over {}s, \ncolumn \'{}\''.format(time_period,
-                                                                           date_column))
+            msg = 'Samples occurence over {}s, \ncolumn \'{}\''
+            plt.title(msg.format(time_period, date_column))
             plt.xticks(rotation=45)
             sns.barplot(x=categories, y=occurences,
                         edgecolor='0', color='orange', alpha=0.75)
 
         def plot_month_occurences(self, date_column):
-            categories_dict = self.outer.time_computer.month_occurences(date_column)
+            cat_dict = self.outer.time_computer.month_occurences(date_column)
             time_period = 'month'
-            self.plot_occurences(categories_dict, time_period, date_column)
-            
+            self.plot_occurences(cat_dict, time_period, date_column)
+
         def plot_weeknumber_occurences(self, date_column):
-            categories_dict = self.outer.time_computer.weeknumber_occurences(date_column)
+            cat_dict = self.outer.time_computer.weeknumber_occurences(date_column)
             time_period = 'week number'
-            self.plot_occurences(categories_dict, time_period, date_column)
+            self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_hour_occurences(self, date_column):
-            categories_dict = self.outer.time_computer.hour_occurences(date_column)
+            cat_dict = self.outer.time_computer.hour_occurences(date_column)
             time_period = 'hour'
-            self.plot_occurences(categories_dict, time_period, date_column)
+            self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_weekday_occurences(self, date_column):
-            categories_dict = self.outer.time_computer.weekday_occurences(date_column)
+            cat_dict = self.outer.time_computer.weekday_occurences(date_column)
             time_period = 'week day'
-            self.plot_occurences(categories_dict, time_period, date_column)
+            self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_monthday_occurences(self, date_column):
-            categories_dict = self.outer.time_computer.monthday_occurences(date_column)
+            cat_dict = self.outer.time_computer.monthday_occurences(date_column)
             time_period = 'month day'
-            self.plot_occurences(categories_dict, time_period, date_column)
+            self.plot_occurences(cat_dict, time_period, date_column)
 
-        def plot_averages(self, categories_dict, time_period, value_column, date_column):
-            categories = list(categories_dict.keys())
-            occurences = list(categories_dict.values())
+        def plot_averages(self, cat_dict, time_period, value_col, date_col):
+            categories = list(cat_dict.keys())
+            occurences = list(cat_dict.values())
             title = 'Averages of column \'{}\' over {}s.\nTime series: \'{}\''
-            plt.title(title.format(value_column, time_period, date_column))
+            plt.title(title.format(value_col, time_period, date_col))
             plt.xticks(rotation=45)
             sns.barplot(x=categories, y=occurences,
                         edgecolor='0', color='blue', alpha=0.75)
@@ -780,17 +833,20 @@ class EdaExplorator():
 class FeatureEngineer():
     def __init__(self, df):
         self.df = df
-    
+
     def category_frequencies_df(self, column):
         categories_counter = dict(self.df[column].value_counts())
         categories = list(categories_counter.keys())
         occurrences = list(categories_counter.values())
-        frequencies = [frequency / self.df.shape[0] for frequency in occurrences]
-        frequencies_df = pd.DataFrame(columns=['Category', 'Frequency', 'Cumulated sum'])
+        frequencies = [frequency / self.df.shape[0]
+                       for frequency in occurrences]
+        frequencies_df = pd.DataFrame(columns=['Category',
+                                               'Frequency',
+                                               'Cumulated sum'])
         frequencies_df['Category'] = categories
         frequencies_df['Frequency'] = frequencies
-        frequencies_df.sort_values(by='Frequency', ascending=False, inplace=True)
-        #frequencies_df.dropna()
+        frequencies_df.sort_values(by='Frequency',
+                                   ascending=False, inplace=True)
         frequencies_df['Cumulated sum'] = frequencies_df['Frequency'].cumsum()
         return frequencies_df
 
@@ -802,7 +858,7 @@ class FeatureEngineer():
                 rare_values.append(value)
         for rare_value in rare_values:
             self.df[column] = self.df[column].replace('^' + rare_value + '$',
-                                                      'others', regex=True)
+                                                      replace_by, regex=True)
         return self.df
 
     def add_date_differences(self, date_column):
@@ -813,8 +869,7 @@ class FeatureEngineer():
         return self.df
 
     def log_transform_column(self, column):
-        # log is defined only on ]0; +infinite[
-        # goal is to have column_min > 0
+        # log is defined only on ]0; +infinite[. column_min must be > 0
         column_min = min(self.df[column])
         if column_min < 0.:
             self.df[column] += min(-column_min + 1, 1)
@@ -825,11 +880,11 @@ class FeatureEngineer():
         self.df[column] = self.df[column].apply(np.log)
         return self.df
 
-    def scale_column(self, mode):
+    def scale_column(self, df, mode):
         quant_columns = []
-        for column in self.df.columns:
-            not_an_object = (self.df[column].dtype != 'object')
-            not_boolean = (self.df[column].nunique() > 4)
+        for column in df.columns:
+            not_an_object = (df[column].dtype != 'object')
+            not_boolean = (df[column].nunique() > 4)
             if not_an_object and not_boolean:
                 quant_columns.append(column)
         if mode == 'std':
@@ -838,16 +893,17 @@ class FeatureEngineer():
             scaler = MinMaxScaler()
         else:
             return print('Non valid mode.')
-        scaled_df = scaler.fit_transform(np.array(self.df[quant_columns]))
+        scaled_df = scaler.fit_transform(np.array(df[quant_columns]))
         scaled_df = pd.DataFrame(scaled_df, columns=quant_columns)
         for column in quant_columns:
-            self.df[column] = list(scaled_df[column])
-        return self.df
+            df[column] = list(scaled_df[column])
+        return df
 
     def split_and_scale(self, target):
         X = self.df.drop(target, axis=1)
         y = self.df[target]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+        [X_train, X_test,
+         y_train, y_test] = train_test_split(X, y, test_size=0.33)
         X_train = self.scale_column(X_train, mode='minmax')
         X_test = self.scale_column(X_test, mode='minmax')
         return X_train, X_test, y_train, y_test
@@ -859,7 +915,9 @@ class PcaDisplayer():
         self.df = df
 
     def plot_scree(self, n_comp):
-        """Displays the pareto diagram of the proper values of a given dataframe."""
+        """
+        Displays the pareto diagram of the proper values of a given dataframe.
+        """
         pca = decomposition.PCA(n_components=n_comp)
         pca.fit(self.df)
         scree_ = pca.explained_variance_ratio_ * 100
@@ -879,7 +937,9 @@ class PcaDisplayer():
         pca = PCA(n_components=n_comp)
         pca_df = pca.fit_transform(self.df)
         sns.set_theme(style="darkgrid")
-        a_plot = sns.relplot(pca_df[:, 0], pca_df[:, 1], s=5)
+        a_plot = sns.relplot(x=pca_df[:, 0],
+                             y=pca_df[:, 1],
+                             s=5)
         max_x = np.abs(max(pca_df[:, 0]))
         max_y = np.abs(max(pca_df[:, 1]))
         boundary = max(max_x, max_y) * 1.1
@@ -902,15 +962,20 @@ class PcaDisplayer():
         x_min, x_max, y_min, y_max = -1, 1, -1, 1
         for d1, d2 in axis_ranks:
             if d2 < n_comp:
-                fig, ax = plt.subplots(figsize=(7, 6))
+                _, ax = plt.subplots(figsize=(7, 6))
                 # Features bars
                 lines = [[[0, 0], [x, y]] for x, y in self.df[[d1, d2]].T]
                 ax.add_collection(LineCollection(lines, axes=ax,
                                                  alpha=.1, color='black'))
+                labels = self.df['Label']
                 # Variables names
-                if labels is not None:
+                if labels:
                     for i, (x, y) in enumerate(self.df[[d1, d2]].T):
-                        if x >= x_min and x <= x_max and y >= y_min and y <= y_max:
+                        cond_1 = (x >= x_min)
+                        cond_2 = (x <= x_max)
+                        cond_3 = (y >= y_min)
+                        cond_4 = (y <= y_max)
+                        if cond_1 and cond_2 and cond_3 and cond_4:
                             plt.text(x, y, labels[i],
                                      fontsize='14', ha='center', va='center',
                                      color="blue", alpha=0.5)
@@ -929,18 +994,20 @@ class PcaDisplayer():
                 plt.show(block=False)
 
     def circles(self, X_scaled, n_comp):
-        """Affiche les deux cercles de corrélation : individus et features."""
+        """
+        Affiche les deux cercles de corrélation : individus et features.
+        """
         pca = decomposition.PCA(n_components=n_comp)
         pca.fit(X_scaled)
         # pcs = pca.components_
-        self.pca_feature_circle(n_comp, pca, [(0, 1)], labels=np.array(X_scaled.columns))
+        self.feature_circle(n_comp, pca, [(0, 1)])
         plt.show()
 
     def plot_factorial_planes(self, X_projected, n_comp, pca, axis_ranks,
                                  labels=None, alpha=1, illustrative_var=None):
         for d1, d2 in axis_ranks:
             if d2 < n_comp:
-                fig = plt.figure(figsize=(7, 6))
+                _ = plt.figure(figsize=(7, 6))
                 # Points
                 if illustrative_var is None:
                     plt.scatter(X_projected[:, d1],
@@ -969,7 +1036,8 @@ class PcaDisplayer():
                                               round(100*pca.explained_variance_ratio_[d1], 1)))
                 plt.ylabel('F{} ({}%)'.format(d2+1,
                                               round(100*pca.explained_variance_ratio_[d2], 1)))
-                plt.title("Projection des individus (sur F{} et F{})".format(d1+1, d2+1))
+                msg = "Projection des individus (sur F{} et F{})"
+                plt.title(msg.format(d1+1, d2+1))
                 plt.show(block=False)
 
     def df_proper_values(self, n_comp):
@@ -984,8 +1052,11 @@ class PcaDisplayer():
         pca = decomposition.PCA(n_components=n_comp)
         pca.fit(self.df)
         pcs = pca.components_
-        self.display_circles(pcs, n_comp, pca, [(0, 1)],
-                             labels=np.array(self.df.columns))
+        self.plot_factorial_planes(pcs,
+                                   n_comp,
+                                   pca,
+                                   [(0, 1)],
+                                   labels=np.array(self.df.columns))
         plt.show()
 
     def first_n_features_df(self, new_width):
@@ -993,8 +1064,8 @@ class PcaDisplayer():
             print('ERROR: New width greater than original dataframe width!')
             raise Exception()
         if new_width > self.df.shape[0]:
-            print('WARNING: New width is smaller than original dataframe length!')
-        feature_means = self.df_proper_values(self.df, new_width)
+            print('WARNING: New width smaller than original dataframe length!')
+        feature_means = self.df_proper_values(new_width)
         scree_df = pd.DataFrame({'feature': self.df.columns,
                                  'mean': feature_means})
         scree_df = scree_df.sort_values(by='mean', ascending=False)
@@ -1009,7 +1080,7 @@ class PcaDisplayer():
 
 
 class PerformancesEvaluator():
-    def __init(self, df):
+    def __init__(self, df):
         self.df = df
 
     def perf_n_pca(self, pca_values_list, n_clust):
@@ -1023,11 +1094,11 @@ class PerformancesEvaluator():
         sil_dict = {}
         for pca_value in pca_values_list:
             print('Number of pca components:', pca_value)
-            PcaClass = PcaDisplayer()
-            pca_df = PcaClass.first_n_features_df(self.df, pca_value)
+            PcaClass = PcaDisplayer(self.df)
+            pca_df = PcaClass.first_n_features_df(pca_value)
             # Apply k-means
             Identifier = std_kmeans.KmeansIdentifier(pca_df)
-            model = Identifier.get_model_and_add_labels(n_clust)
+            model = Identifier.get_fitted_model(n_clust)
             [inertia, ch, db, sil] = Identifier.get_kmeans_metrics(model)
             in_dict[pca_value] = inertia
             ch_dict[pca_value] = ch
@@ -1058,7 +1129,7 @@ class PerformancesEvaluator():
             [inertia,
              calinski_harabasz,
              davies_bouldin,
-             silhouette] = self.perf_n_pca(self.df, n_pca_list, n_clust)
+             silhouette] = self.perf_n_pca(n_pca_list, n_clust)
             in_df.loc[n_clust] = list(inertia.values())
             ch_df.loc[n_clust] = list(calinski_harabasz.values())
             db_df.loc[n_clust] = list(davies_bouldin.values())
@@ -1079,37 +1150,3 @@ def plot_multiclass_tsne(X, y):
                     palette=sns.hls_palette(n_clust),
                     legend='full',
                     s=5)
-
-
-def show_lime_in_notebook(y_train, X_test):
-    from lime.lime_text import LimeTextExplainer
-    from sklearn.naive_bayes import MultinomialNB
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.pipeline import make_pipeline
-    class_names = list(y_train.unique())
-    explainer = LimeTextExplainer(class_names=class_names)
-    #
-    vectorizer = TfidfVectorizer(lowercase=False)
-    nb = MultinomialNB(alpha=.01)
-    c = make_pipeline(vectorizer, nb)
-    #
-    idx = 1340
-    #
-    exp = explainer.explain_instance(X_test.data[idx],
-                                     c.predict_proba,
-                                     num_features=6,
-                                     top_labels=2)
-    
-
-def shap_repr():
-    """
-    Reference document:
-    https://docs.seldon.io/projects/alibi/en/latest/methods/KernelSHAP.html
-    """
-    #dtrain = xgb.DMatrix(np.array(X_train), list(y_train))
-    #explainer = shap.TreeExplainer(model)
-    #shap_values = explainer.shap_values(dtrain)
-    #shap.summary_plot(shap_values, X_train)
-    #shap.plots.beeswarm(shap_values)
-    #shap.plots.bar(shap_values)
-    #shap.plots.force(shap_test[0])

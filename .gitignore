@@ -2,6 +2,10 @@
 /archives/*
 /q7/.idea/*
 /versioning/*
+/.ipynb_checkpoints/*
 
 # Files
 *.pyc
+*.csv
+*.ipynb
+pylint.py
