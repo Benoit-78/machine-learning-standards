@@ -7,6 +7,9 @@ Main objective: provide an IT version of the tools of quality, as described
                 by Dr. Ishikawa in its book 'Guide for Quality Control, 1968'
 """
 
+import statistics as stat
+
+from collections import Counter
 
 import math
 import matplotlib.pyplot as plt
@@ -14,9 +17,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as ss
 import seaborn as sns
-import statistics as stat
 
-from collections import Counter
 from matplotlib.patches import Ellipse
 
 
@@ -32,24 +33,26 @@ class QualityTool():
     These common purposes are gathered in the present class.
     """
     def __init__(self, purpose=None, scale=None, process=None, line=None,
-        product=None, date=None, shift=None, multiple='Unique', divers=None):
+        product=None, datetime=None, multiple='Unique'):
         self.purpose = purpose
         self.scale = scale
         self.process = process
         self.line = line
         self.product = product
-        self.date = date
-        self.shift = shift
-        self.divers = divers
+        self.datetime = datetime
+        self.multiple = multiple
         sns.set_theme(style="darkgrid")
 
     def general_info(self):
+        """
+        Displays a table of general information below the quality tool.
+        """
         temp_df = pd.DataFrame(
             columns=['Value'],
             index=['Purpose', 'Scale', 'Process', 'Line',
                    'Product', 'Date', 'Shift', 'Divers'],
             data=[self.purpose, self.scale, self.process, self.line,
-                  self.product, self.date, self.shift, self.divers])
+                  self.product, self.datetime])
         return temp_df
 
 
@@ -58,7 +61,8 @@ class QualityTool():
 class Histogram(QualityTool):
     """
     What is a histogram?
-        -> a histogram is a graph that represents the distribution of a quantitative variable.
+        -> a histogram is a graph that represents the distribution of a
+        quantitative variable.
     What use is a histogram?
         -> shows the global and local tendencies, the outliers, ...
     """
@@ -69,59 +73,69 @@ class Histogram(QualityTool):
         self.quantile_sup = quantile_sup
         self.quantile_inf = quantile_inf
 
-    def clean_data(self, data):
-        def remove_currency_symbols(data):
+    def clean_data(self):
+        """
+        Prepare the data to be ready for analysis.
+        """
+        def remove_currency_symbols():
             for currency in ['€', '$', '£']:
-                data = [element.replace(currency, '')
-                        for element in data
+                self.data = [element.replace(currency, '')
+                        for element in self.data
                         if currency in element]
-            return data
 
-        def replace_empty_strings(data):
-            data = [element.replace(' ', '') for element in data]
-            return data
+        def replace_empty_strings():
+            self.data = [element.replace(' ', '') for element in self.data]
 
-        def replace_comma_by_points(data):
-            data = [element.replace(',', '.') for element in data]
-            return data
+        def replace_comma_by_points():
+            self.data = [element.replace(',', '.') for element in self.data]
 
-        def make_floats(data):
-            data = [float(element) for element in data]
-            return data
+        def make_floats():
+            self.data = [float(element) for element in self.data]
 
-        if data.dtype in ['object', 'str']:
-            data = remove_currency_symbols(data)
-            data = replace_empty_strings(data)
-            data = replace_comma_by_points(data)
-        data = make_floats(data)
-        return pd.Series(data)
+        if self.data.dtype in ['object', 'str']:
+            remove_currency_symbols()
+            replace_empty_strings()
+            replace_comma_by_points()
+        make_floats()
+        return pd.Series(self.data)
 
-    def data_without_outliers(self, data, quantile_sup, quantile_inf):
-        if quantile_sup != 1:
-            data = data[data < data.quantile(quantile_sup)]
-        if quantile_inf != 0:
-            data = data[data > data.quantile(quantile_inf)]
-        return data
+    def data_without_outliers(self):
+        """
+        Remove outliers according to specification.
+        """
+        if self.quantile_sup != 1:
+            self.data = self.data[self.data < self.data.quantile(self.quantile_sup)]
+        if self.quantile_inf != 0:
+            self.data = self.data[self.data > self.data.quantile(self.quantile_inf)]
+        return self.data
 
-    def statistical_metadata(self, data):
-        mu = stat.mean(data)
-        sigma = stat.stdev(data)
-        skewness = ss.skew(data)
-        kurtosis = ss.kurtosis(data)
-        indic_list = [mu, sigma, skewness, kurtosis]
+    def statistical_metadata(self):
+        """
+        Return general purpose statistical metrics.
+        """
+        mean = stat.mean(self.data)
+        sigma = stat.stdev(self.data)
+        skewness = ss.skew(self.data)
+        kurtosis = ss.kurtosis(self.data)
+        indic_list = [mean, sigma, skewness, kurtosis]
         indic_list = [round(number, 2) for number in indic_list]
         return indic_list
 
     def plot(self):
-        data = self.clean_data(self.data)
-        data = self.data_without_outliers(data, self.quantile_sup, self.quantile_inf)
-        [mu, sigma, skewness, kurtosis] = self.statistical_metadata(data)
+        """
+        Plot the histogram.
+        """
+        data = self.clean_data()
+        data = self.data_without_outliers()
+        [mean, sigma, skewness, kurtosis] = self.statistical_metadata()
         # plt.tight_layout(5.0)
         fig, (ax_box, ax_dist) = plt.subplots(2, 1, sharex='all',
-                                              gridspec_kw={'height_ratios': [1, 5]})
+                                              gridspec_kw={
+                                                  'height_ratios':[1, 5]
+                                                  })
         fig.suptitle('Distribution of ' + self.feature)
         sns.set_theme(style="darkgrid")
-        sns.boxplot(data, ax=ax_box)
+        sns.boxplot(data=data, ax=ax_box)
         ax_box.set_xlabel('')
         #
         sns.histplot(data, kde=True, ax=ax_dist, bins=60,
@@ -131,7 +145,7 @@ class Histogram(QualityTool):
         ax_dist.set_xlabel('Values')
         ax_dist.set_ylabel('Amount')
         ax_dist.axvline(x=stat.mean(data), c='k', linestyle='--',
-                        label='\u03BC = ' + str(mu))
+                        label='\u03BC = ' + str(mean))
         ax_dist.legend(loc='best')
         return super().general_info()
 
@@ -156,6 +170,10 @@ class ControlChart(QualityTool):
             self.orientation = 'column'
 
     def array_compute(self):
+        """
+        Given the data, computes the lists of values that will be displayed
+        on the graph.
+        """
         n_samples = self.data.shape[0]
         # AVERAGES
         x_bar_list = [round(element, 1) for element in self.data.mean(axis=0)]
@@ -169,25 +187,27 @@ class ControlChart(QualityTool):
             r_list.append(max_list - min_list)
         r_bar = [stat.mean(r_list)] * len(r_list)
         # Control limits
-        constants_df = upload_csv(path=PATH, file='3_constants.csv',
-                                  df_variable='constants_df',
-                                  df_name='Constants dataframe')
+        constants_df = pd.read_csv(r'.\3_constants.csv')
         constants_df.set_index('sample size', inplace=True)
-        self.A2 = float(constants_df.loc[n_samples]['A2'])
-        self.D3 = float(constants_df.loc[n_samples]['D3'])
-        self.D4 = float(constants_df.loc[n_samples]['D4'])
+        a_2 = float(constants_df.loc[n_samples]['A2'])
+        d_3 = float(constants_df.loc[n_samples]['D3'])
+        d_4 = float(constants_df.loc[n_samples]['D4'])
         # Averages
-        x_bar_ucl = [x_bar_bar[0] + r_bar[0] * self.A2] * len(r_list)
-        x_bar_lcl = [x_bar_bar[0] - r_bar[0] * self.A2] * len(r_list)
+        x_bar_ucl = [x_bar_bar[0] + r_bar[0] * a_2] * len(r_list)
+        x_bar_lcl = [x_bar_bar[0] - r_bar[0] * a_2] * len(r_list)
         # Ranges
-        r_ucl = [r_bar[0] * self.D4] * len(r_list)
-        r_lcl = [r_bar[0] * self.D3] * len(r_list)
+        r_ucl = [r_bar[0] * d_4] * len(r_list)
+        r_lcl = [r_bar[0] * d_3] * len(r_list)
         return [x_bar_list, x_bar_bar,
                 r_list, r_bar,
                 x_bar_ucl, x_bar_lcl,
                 r_ucl, r_lcl]
 
     def outliers_coordinates(self, values, ucl, lcl):
+        """
+        Given the data and the control limits, identify the points outside the
+        latest.
+        """
         outliers_coord = []
         for i, value in enumerate(values):
             if value > ucl or value < lcl:
@@ -196,35 +216,50 @@ class ControlChart(QualityTool):
                 outliers_coord.append((outlier_x, outlier_y))
         return outliers_coord
 
-    def outliers_circles(self, coord_x, coord_y, ucl, lcl, len):
-        control_range = ucl - lcl
+    def outliers_circles(self, coord_x, coord_y, control_range, length):
+        """
+        Display circles around outliers to make them visible for the user.
+        """
         ellipse = Ellipse((coord_x, coord_y),
-                          len / 12, (control_range) / 2, edgecolor='red', fill=False)
+                          length / 12,
+                          control_range / 2,
+                          edgecolor='red',
+                          fill=False)
         return ellipse
 
     def average_ylim(self, ucl, lcl):
-        """Given a list of values, determines which y limits are appropriate
-        to have a relevant plot."""
+        """
+        Given a list of values, determines which y limits are appropriate
+        to have a relevant plot.
+        """
         control_range = ucl - lcl
         ylim_max = ucl + control_range
         ylim_min = lcl - control_range
         return (ylim_min, ylim_max)
 
     def range_ylim(self, ucl, lcl):
+        """
+        Determines the optimal vertical frame.
+        """
         control_range = ucl - lcl
         ylim_max = 3 * control_range + - control_range / 10
         ylim_min = 0 - control_range / 10
         return (ylim_min, ylim_max)
 
     def plot_array(self):
+        """
+        Display the control chart, with values, averages, ranges,
+        control limits, ...
+        """
         [x_bar_list, x_bar_bar,
          r_list, r_bar,
          x_bar_ucl, x_bar_lcl,
          r_ucl, r_lcl] = self.array_compute()
         # Set the size
         data_len = len(x_bar_list)
-        fig, axs = plt.subplots(ncols=2, nrows=2, sharex='col',
-                                figsize=(math.sqrt(data_len * 5), math.sqrt(data_len * 3)))
+        fig, _ = plt.subplots(ncols=2, nrows=2, sharex='col',
+                                figsize=(math.sqrt(data_len * 5),
+                                         math.sqrt(data_len * 3)))
         grid = plt.GridSpec(2, 6, wspace=0.3, hspace=0.2)
         ave_chart = plt.subplot(grid[0, :4])
         ave_hist = plt.subplot(grid[0, 4:])
@@ -251,13 +286,16 @@ class ControlChart(QualityTool):
         ave_chart.plot(x_bar_lcl, '-', color='orange', linewidth=1)
         ave_chart.text(x=len(x_bar_list) - 2, y=x_bar_lcl[0] - 2, s='LCL')
         # Outliers
-        x_outliers_coord = self.outliers_coordinates(x_bar_list, x_bar_ucl[0], x_bar_lcl[0])
+        x_outliers_coord = self.outliers_coordinates(x_bar_list,
+                                                     x_bar_ucl[0],
+                                                     x_bar_lcl[0])
+        control_range = x_bar_ucl[0] - x_bar_lcl[0]
         for outlier in x_outliers_coord:
             ave_chart.add_artist(self.outliers_circles(
-                outlier[0], outlier[1], x_bar_ucl[0], x_bar_lcl[0], data_len))
+                outlier[0], outlier[1], control_range, data_len))
         # AVERAGES HISTOGRAM
         ave_hist.set_xlim(hist_xlim)
-        ave_hist.set_ylim(average_ylim)
+        ave_hist.set_ylim(ave_ylim)
         ave_hist.grid(axis='x')
         ave_hist.grid(axis='y')
         ave_hist.get_xaxis().set_visible(True)
@@ -281,11 +319,13 @@ class ControlChart(QualityTool):
         ran_chart.plot(r_lcl, '-', color='c', linewidth=1)
         ran_chart.text(x=len(r_list) - 2, y=r_lcl[0] - 5, s='LCL')
         # Outliers
-        r_outliers_coord = self.outliers_coordinates(r_list, r_ucl[0], r_lcl[0])
+        r_outliers_coord = self.outliers_coordinates(r_list,
+                                                     r_ucl[0],
+                                                     r_lcl[0])
         for outlier in r_outliers_coord:
             ran_chart.add_artist(
                 self.outliers_circles(
-                    outlier[0], outlier[1], r_ucl[0], r_lcl[0], data_len))
+                    outlier[0], outlier[1], r_ucl[0] - r_lcl[0], data_len))
         # RANGES HISTOGRAM
         ran_hist.set_xlim(hist_xlim)
         ran_hist.set_ylim(ran_ylim)
@@ -300,55 +340,66 @@ class ControlChart(QualityTool):
         _ = ''  # to prevent a perturbative error message
         # return _
 
-    def plot_correctly(self):
-        if type(self.data) == type(np.array):
-            self.plot_array()
-        elif isinstance(self.data, list):
-            self.plot_list()
-
-    def control_chart_bivariate(self, original_df, x_feature, y_feature, year, y_min, y_max, group_by):
-        df = original_df[[x_feature, y_feature]]
-        df[x_feature] = pd.to_datetime(df[x_feature])
+    def control_chart_bivariate(self, original_df, x_feature, y_feature,
+                                group_by):
+        """
+        Control chart with y_feature as values & x_feature as dates.
+        """
+        dataframe = original_df[[x_feature, y_feature]]
+        dataframe[x_feature] = pd.to_datetime(dataframe[x_feature])
         if group_by == 'week':
-            df[x_feature] = [element.isocalendar()[1] for element in df[x_feature]]
+            dataframe[x_feature] = [element.isocalendar()[1]
+                             for element in dataframe[x_feature]]
         if group_by == 'month':
-            df[x_feature] = df[x_feature].dt.month
-        df = df.groupby([x_feature]).mean().reset_index()
+            dataframe[x_feature] = dataframe[x_feature].dt.month
+        dataframe = dataframe.groupby([x_feature]).mean().reset_index()
         # Average line and control lines
-        feature_mean = df[y_feature].mean()
-        df['feature_mean'] = [feature_mean] * df.shape[0]
-        feature_stdev = df[y_feature].std()
-        df['feature_ucl'] = df['feature_mean'] + 3 * feature_stdev
-        df['feature_lcl'] = df['feature_mean'] - 3 * feature_stdev
+        feature_mean = dataframe[y_feature].mean()
+        dataframe['feature_mean'] = [feature_mean] * dataframe.shape[0]
+        feature_stdev = dataframe[y_feature].std()
+        dataframe['feature_ucl'] = dataframe['feature_mean'] + 3*feature_stdev
+        dataframe['feature_lcl'] = dataframe['feature_mean'] - 3*feature_stdev
         # Plot
-        fig, ax = plt.subplots(figsize=(8, 8))
-        plt.title('{}, année {}'.format(y_feature, year))
+        _, _ = plt.subplots(figsize=(8, 8))
+        plt.title(y_feature)
         plt.xlabel('Semaines calendaires')
         plt.ylabel(y_feature)
-        plt.ylim(y_min, y_max)
-        plot_feature = plt.plot(df[x_feature], df[y_feature],
-                                'c', linewidth=1, marker='o', color='k', markerfacecolor='orange', markersize=8)
-        plot_mean = plt.plot(df[x_feature], df['feature_mean'],
-                             'k', linewidth=3)
-        plot_ucl = plt.plot(df[x_feature], df['feature_ucl'], '--', color='k')
-        plot_lcl = plt.plot(df[x_feature], df['feature_lcl'], '--', color='k')
+        plt.ylim(min(dataframe[y_feature]) * 1.1,
+                 max(dataframe[y_feature]) * 1.1)
+        _ = plt.plot(dataframe[x_feature], dataframe[y_feature],
+                     'c', linewidth=1, marker='o', color='k',
+                     markerfacecolor='orange', markersize=8)
+        _ = plt.plot(dataframe[x_feature], dataframe['feature_mean'],
+                     'k', linewidth=3)
+        _ = plt.plot(dataframe[x_feature], dataframe['feature_ucl'],
+                     '--', color='k')
+        _ = plt.plot(dataframe[x_feature], dataframe['feature_lcl'],
+                     '--', color='k')
         plt.show()
 
 
 
 class SpecialCauseDetector():
-    def __init__(self, data):
+    """
+    Provide identifiers of special causes in the given data.
+    """
+    def __init__(self, data, feature_name):
         self.data = data
+        self.feature_name = feature_name
         [self.values, self.mean,
-         self.b, self.c,
+         _, _,
          self.ucl, self.lcl,
-         self.d, self.e] = ControlChart(mails_df, 'Mail flow').array_compute()
+         _, _] = ControlChart(data, feature_name).array_compute()
         self.mean = self.mean[0]
         self.ucl = self.ucl[0]
         self.lcl = self.lcl[0]
         self.no_warning = 'No warning'
 
     def one_side_sequence(self, n_points=7):
+        """
+        Identify a sequence of points all above (or all below) the average
+        value.
+        """
         indicators_list = []
         for i, value in enumerate(self.values):
             if value > self.mean:
@@ -362,16 +413,21 @@ class SpecialCauseDetector():
         # Check the presence of such a sequence in the values
         if zeros_string in indic_string:
             i = len(indic_string.split(zeros_string)[0]) + 1
-            return 'Warning: sequence of {} or more successive points under the mean value. Starting from point {}.'.format(
-                n_points, i)
+            result = 'Warning: sequence of {} or more successive points under'\
+                ' the mean value. Starting from point {}.'.format(n_points, i)
         elif ones_string in indic_string:
             i = len(indic_string.split(ones_string)[0]) + 1
-            return 'Warning: sequence of {} or more successive points under the mean value. Starting from point {}.'.format(
-                n_points, i)
+            result = 'Warning: sequence of {} or more successive points under'\
+                ' the mean value. Starting from point {}.'.format(n_points, i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
     def monotone_sequence(self, n_points=6):
+        """
+        Identify a sequence of points that is strictly ascending (or strictly
+        descending)
+        """
         indicators_list = []
         for i in range(1, len(self.values)):
             if self.values[i] > self.values[i - 1]:
@@ -385,16 +441,23 @@ class SpecialCauseDetector():
         # Check the presence of such a sequence in the values
         if zeros_string in indic_string:
             i = len(indic_string.split(zeros_string)[0]) + 1
-            return 'Warning: monotone sequence of {} or more successive points. Starting from point {}.'.format(
+            result = 'Warning: monotone sequence of {} or more successive'\
+                ' points. Starting from point {}.'.format(
                 n_points, i)
         elif ones_string in indic_string:
             i = len(indic_string.split(ones_string)[0]) + 1
-            return 'Warning: monotone sequence of {} or more successive points. Starting from point {}.'.format(
+            result = 'Warning: monotone sequence of {} or more successive'\
+                ' points. Starting from point {}.'.format(
                 n_points, i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
     def wobble_sequence(self, n_points=14):
+        """
+        Identify a sequence of points that oscilate around the average value
+        (one above and one below sequentially)
+        """
         indicators_list = []
         for i in range(1, len(self.values)):
             if self.values[i] > self.values[i - 1]:
@@ -402,24 +465,35 @@ class SpecialCauseDetector():
             else:
                 indicators_list.append(0)
         # Transforming the list in string for comparison
-        wobble_string = ''.join([str(element) for element in ['01'] * int(n_points / 2)])
-        indic_string = ''.join([str(element) for element in indicators_list])
+        wobble_string = ''.join([str(element)
+                                 for element in ['01'] * int(n_points / 2)])
+        indic_string = ''.join([str(element)
+                                for element in indicators_list])
         # Check the presence of such a sequence in the values
         if wobble_string in indic_string:
             i = len(indic_string.split(wobble_string)[0]) + 1
-            return 'Warning: wobble sequence of {} or more successive points. Starting from point {}.'.format(n_points,
-                                                                                                              i)
+            result = 'Warning: wobble sequence of {} or more successive points.'\
+                ' Starting from point {}.'.format(n_points, i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
-    def two_sigma_sequence(self, n_points=3):
+    def two_sigma_sequence(self):
+        """
+        Identify a sequence of 3 points not in the central 2-sigma zone,
+        all above or all below average value.
+        """
         indic_list = []
         for value in self.values:
+            upper_value = (value - self.mean > (self.ucl - self.lcl) / 3)
+            upper_outlier = (value > self.ucl)
+            lower_value = (value - self.mean < -(self.ucl - self.lcl) / 3)
+            lower_outlier = (value < self.lcl)
             # Partie sup
-            if value - self.mean > (self.ucl - self.lcl) / 3 and value < self.ucl:
+            if upper_value and not upper_outlier:
                 indic_list.append(1)
             # Partie inf
-            if value - self.mean < -(self.ucl - self.lcl) / 3 and value > self.lcl:
+            if lower_value and not lower_outlier:
                 indic_list.append(-1)
             else:
                 indic_list.append(0)
@@ -432,47 +506,76 @@ class SpecialCauseDetector():
         # Check the presence of such a sequence in the values
         if str_1 in indic_string:
             i = len(indic_string.split(str_1)[0]) + 1
-            return 'Warning: two neighbour points above upper 2-sigma limit. Starting from point {}.'.format(i)
+            result = 'Warning: two neighbour points above upper 2-sigma'\
+                ' limit. Starting from point {}.'.format(i)
         if str_2 in indic_string:
             i = len(indic_string.split(str_2)[0]) + 1
-            return 'Warning: two successive points above upper 2-sigma limit. Starting from point {}.'.format(i)
+            result = 'Warning: two successive points above upper 2-sigma'\
+                ' limit. Starting from point {}.'.format(i)
         if str_3 in indic_string:
             i = len(indic_string.split(str_3)[0]) + 1
-            return 'Warning: two neighbour points under lower 2-sigma limit. Starting from point {}.'.format(i)
+            result = 'Warning: two neighbour points under lower 2-sigma'\
+                ' limit. Starting from point {}.'.format(i)
         if str_4 in indic_string:
             i = len(indic_string.split(str_4)[0]) + 1
-            return 'Warning: two successive points under lower 2-sigma limit. Starting from point {}.'.format(i)
+            result = 'Warning: two successive points under lower 2-sigma'\
+                ' limit. Starting from point {}.'.format(i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
-    def one_sigma_sequence(self, n_points=5):
+    def one_sigma_sequence(self):
+        """
+        Identify a sequence of 4 points not in the central one-sigma zone,
+        all above or all below average value.
+        """
         indic_list = []
         for value in self.values:
+            upper_value = (value - self.mean > (self.ucl - self.lcl) / 6)
+            upper_outlier = (value > self.ucl)
+            lower_value = (value - self.mean < -(self.ucl - self.lcl) / 6)
+            lower_outlier = (value < self.lcl)
             # Partie sup
-            if value - self.mean > (self.ucl - self.lcl) / 6 and value < self.ucl:
+            if upper_value and not upper_outlier:
                 indic_list.append(1)
             # Partie inf
-            if value - self.mean < -(self.ucl - self.lcl) / 6 and value > self.lcl:
+            if lower_value and not lower_outlier:
                 indic_list.append(-1)
             else:
                 indic_list.append(0)
         # Transforming the list in string for comparison
-        up_list = ['01111', '10111', '11011', '11101', '11110']
-        low_list = ['0-1-1-1-1', '-10-1-1-1', '-1-10-1-1', '-1-1-10-1', '-1-1-1-10']
+        up_list = ['01111',
+                   '10111',
+                   '11011',
+                   '11101',
+                   '11110']
+        low_list = ['0-1-1-1-1',
+                    '-10-1-1-1',
+                    '-1-10-1-1',
+                    '-1-1-10-1',
+                    '-1-1-1-10']
         indic_string = ''.join([str(element) for element in indic_list])
         # Check the presence of such a sequence in the values
         for string in up_list:
             if string in indic_string:
                 i = len(indic_string.split(string)[0]) + 1
-                return 'Warning: 4 neighbour points above upper 1-sigma limit. Starting from point {}.'.format(i)
+                result = 'Warning: 4 neighbour points above upper'\
+                    '1-sigma limit. Starting from point {}.'.format(i)
+            else:
+                result = self.no_warning
         for string in low_list:
             if string in indic_string:
                 i = len(indic_string.split(string)[0]) + 1
-                return 'Warning: 4 neighbour points under lower 1-sigma limit. Starting from point {}.'.format(i)
-        else:
-            return self.no_warning
+                result = 'Warning: 4 neighbour points under lower'\
+                    '1-sigma limit. Starting from point {}.'.format(i)
+            else:
+                result = self.no_warning
+        return result
 
     def central_sequence(self, n_points=15):
+        """
+        Identify a sequence of 15 points in the central one-sigma zone.
+        """
         indic_list = []
         for value in self.values:
             if abs(value - self.mean) < (self.ucl - self.lcl) / 6:
@@ -485,12 +588,16 @@ class SpecialCauseDetector():
         # Check the presence of such a sequence in the values
         if ones_string in indic_string:
             i = len(indic_string.split(ones_string)[0]) + 1
-            return 'Warning: central sequence of {} or more successive points. Starting from point {}.'.format(n_points,
-                                                                                                               i)
+            result = 'Warning: central sequence of {} or more successive '\
+                'points. Starting from point {}.'.format(n_points, i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
     def sides_only_sequence(self, n_points=8):
+        """
+        Identify a sequence of 8 points not in the central one-sigma zone.
+        """
         indic_list = []
         for value in self.values:
             if abs(value - self.mean) > (self.ucl - self.lcl) / 6:
@@ -503,65 +610,79 @@ class SpecialCauseDetector():
         # Check the presence of such a sequence in the values
         if ones_string in indic_string:
             i = len(indic_string.split(ones_string)[0]) + 1
-            return 'Warning: sides_only sequence of {} or more successive points. Starting from point {}.'.format(
-                n_points, i)
+            result = 'Warning: sides_only sequence of {} or more successive '\
+                'points. Starting from point {}.'.format(n_points, i)
         else:
-            return self.no_warning
+            result = self.no_warning
+        return result
 
     def report(self):
-        test_report_df = pd.DataFrame(columns=['Comment'])
-        test_report_df.loc['One-side sequence'] = [self.one_side_sequence()]
-        test_report_df.loc['Monotone sequence'] = [self.monoton_sequence()]
-        test_report_df.loc['Wobble sequence'] = [self.wobble_sequence()]
-        test_report_df.loc['2 sigma sequence'] = [self.two_sigma_sequence()]
-        test_report_df.loc['1 sigma sequence'] = [self.one_sigma_sequence()]
-        test_report_df.loc['Central sequence'] = [self.central_sequence()]
-        test_report_df.loc['Sides only sequence'] = [self.sides_only_sequence()]
-        return test_report_df
+        """
+        Return a dataframe of principal indicators.
+        """
+        report_df = pd.DataFrame(columns=['Comment'])
+        report_df.loc['One-side sequence'] = [self.one_side_sequence()]
+        report_df.loc['Monotone sequence'] = [self.monotone_sequence()]
+        report_df.loc['Wobble sequence'] = [self.wobble_sequence()]
+        report_df.loc['2 sigma sequence'] = [self.two_sigma_sequence()]
+        report_df.loc['1 sigma sequence'] = [self.one_sigma_sequence()]
+        report_df.loc['Central sequence'] = [self.central_sequence()]
+        report_df.loc['Sides only sequence'] = [self.sides_only_sequence()]
+        return report_df
 
 
 
 # 4th tool
 class Pareto(QualityTool):
-    """What is a Pareto graph?
+    """
+    What is a Pareto graph?
     -> A bar graph of the most common elements of the list, sorted according
     their frequency.
     What use is a Pareto graph?
     -> Identify the most common elements in a set and provide a basis for
-    prioritization of action."""
-
-    def __init__(self, df, column, proportion_acceptance):
+    prioritization of action.
+    """
+    def __init__(self, dataframe, column, proportion_acceptance):
         super().__init__()
-        self.df = df
+        self.dataframe = dataframe
         self.column = column
         self.rate = proportion_acceptance
 
     def categories_and_frequencies(self):
+        """
+        Return categories and their respective frequencies.
+        Filter so that rare categories do not pollute the Pareto graph.
+        """
         def raw_categories_and_frequencies():
             """Returns categories and their occurrence frequencies"""
-            categories_counter = self.df[self.column].value_counts(normalize=True)
-            categories, proportions = list(categories_counter.index), list(categories_counter)
+            cat_counter = self.dataframe[self.column].value_counts(normalize=True)
+            categories = list(cat_counter.index)
+            proportions = list(cat_counter)
             return categories, proportions
 
         def df_replace_nan(categories, frequencies):
-            new_df = pd.DataFrame({'Categories':categories, 'Frequencies':frequencies})
+            new_df = pd.DataFrame({'Categories':categories,
+                                   'Frequencies':frequencies})
             new_df = new_df.replace(np.nan, 'NaN')
             return new_df
 
-        def first_categories_and_frequencies(categories_df):
-            filtered_categories_df = categories_df[categories_df['Frequencies'] > self.rate]
-            categories = list(filtered_categories_df['Categories'])
-            frequencies = list(filtered_categories_df['Frequencies'])
+        def first_categories_and_frequencies(cat_df):
+            filtered_cat_df = cat_df[cat_df['Frequencies'] > self.rate]
+            categories = list(filtered_cat_df['Categories'])
+            frequencies = list(filtered_cat_df['Frequencies'])
             return categories, frequencies
 
         categories, frequencies = raw_categories_and_frequencies()
         categories_df = df_replace_nan(categories, frequencies)
-        categories, frequencies = first_categories_and_frequencies(categories_df)
+        [categories,
+         frequencies] = first_categories_and_frequencies(categories_df)
         frequencies = [frequency * 100 for frequency in frequencies]
         return [categories, frequencies]
 
     def eighty_pct_line(self, cum_frequencies_):
-        """Find the point on the cumulative sum curb that has a 80% ordinate"""
+        """
+        Find the point on the cumulative sum curb that has a 80% ordinate
+        """
         [eighty_percent, x_inf, y_inf, y_sup] = [None] * 4
         for i, cum_frequency in enumerate(cum_frequencies_):
             if cum_frequency > 80 and i > 0:
@@ -573,7 +694,9 @@ class Pareto(QualityTool):
         return [eighty_percent, x_inf, y_inf, y_sup]
 
     def eighty_pct_3_points(self, x_inf, y_inf, y_sup, frequencies_):
-        """Abscissa of the 80% points"""
+        """
+        Abscissa of the 80% points
+        """
         x_80 = x_inf + (80 - y_inf) / (y_sup - y_inf)
         abs_80 = [x_80, 0]
         pt_80 = [x_80, 80]
@@ -581,6 +704,9 @@ class Pareto(QualityTool):
         return [abs_80, pt_80, ord_80]
 
     def colors(self, cumulated_frequencies):
+        """
+        Affect a color to each category, whether it belongs to the 80% or not.
+        """
         colors_list = ['orange']
         for frequency in cumulated_frequencies:
             if frequency<=80:
@@ -592,6 +718,9 @@ class Pareto(QualityTool):
         return colors_list
 
     def plot(self):
+        """
+        Plot Pareto graph.
+        """
         sns.set_theme(style="darkgrid")
         [categories, frequencies] = self.categories_and_frequencies()
         cum_frequencies = list(np.array(frequencies).cumsum())
@@ -617,9 +746,15 @@ class Pareto(QualityTool):
                  cum_frequencies, color='red')
         # 80%
         eighty_percent = None
-        [eighty_percent, x_inf, y_inf, y_sup] = self.eighty_pct_line(cum_frequencies)
+        [eighty_percent,
+         x_inf,
+         y_inf,
+         y_sup] = self.eighty_pct_line(cum_frequencies)
         if eighty_percent and y_inf < 80:
-            [abs_80, pt_80, ord_80] = self.eighty_pct_3_points(x_inf, y_inf, y_sup, frequencies)
+            [abs_80, pt_80, ord_80] = self.eighty_pct_3_points(x_inf,
+                                                               y_inf,
+                                                               y_sup,
+                                                               frequencies)
             # Vertical line
             ax3 = ax2.twinx()
             plt.ylim((0, 110))
@@ -635,55 +770,63 @@ class Pareto(QualityTool):
         # Vertical lines
         plt.tick_params(axis='x', length=0)
         xcoords = [0, factor*1/5, factor*2/5, factor*3/5, factor*4/5, factor]
-        for xc in xcoords:
-            plt.axvline(x=xc, color='w')
-       	return super().general_info()
+        for xcoord in xcoords:
+            plt.axvline(x=xcoord, color='w')
+        return super().general_info()
 
 
 
 class PieChart(QualityTool):
     """
     What is a piechart?
-        -> a piechart is a graph that represents the repartition of several categories in a feature.
+        -> a piechart is a graph that represents the repartition of several
+        categories in a feature.
         What use is a piechart?
         -> a piechart is used for qualitative features with few categories.
         For features with 4 categories or less, a piechart is used.
         For features with 5 categories or more, a Pareto graph is used.
     """
-    def __init__(self, df, column, proportion_acceptance):
+    def __init__(self, dataframe, column, rate):
         super().__init__()
-        self.df = df
+        self.dataframe = dataframe
         self.column = column
-        self.rate = proportion_acceptance
+        self.rate = rate
 
-    def filter(self, column):
+    def filter(self):
         """
-        Reject the values representing less than rate % of the given feature length.
+        Reject the values representing less than rate % of the given feature
+        length.
         """
-        categories_dict = dict(Counter(self.df[column]))
-        df_length = self.df.shape[0]
+        categories_dict = dict(Counter(self.dataframe[self.column]))
+        df_length = self.dataframe.shape[0]
         new_dict = {category: count
                     for category, count in categories_dict.items()
                     if count/df_length > self.rate}
         return new_dict
 
     def plot(self):
-        categories_dict = self.filter(self.column)
-        categories_dict = {category: count
-                           for category, count in sorted(categories_dict.items(),
-                                                         key=lambda item: item[1])}
-        categories = list(categories_dict.keys())
-        counts = list(categories_dict.values())
+        """
+        Plot Pie chart.
+        """
+        cat_dict = self.filter()
+        cat_dict = dict(sorted(cat_dict.items(),
+                               key=lambda item: item[1]))
+        cat = list(cat_dict.keys())
+        counts = list(cat_dict.values())
         # Plot
-        fig, ax = plt.subplots(figsize=(8, 5),
+        _, axes = plt.subplots(figsize=(8, 5),
                                subplot_kw=dict(aspect="equal"))
-        ax.set_title('Unique elements of ' + self.column + ' (>{}%)'.format(self.rate))
-        patches, texts, autotexts = ax.pie(counts,
-                                           autopct=lambda x: round(x, 1),
-                                           startangle=90, shadow=True,
-                                           wedgeprops={'edgecolor':'white',
-                                                       'linewidth': 1})
-        ax.legend(patches, categories, title='Categories', loc="best")
+        title = ''.join(['Unique elements of ',
+                         self.column,
+                         ' (>{}%)'.format(self.rate)])
+        axes.set_title(title)
+        patches, _, autotexts = axes.pie(counts,
+                                       autopct=lambda x: round(x, 1),
+                                       startangle=90,
+                                       shadow=True,
+                                       wedgeprops={'edgecolor':'white',
+                                                   'linewidth': 1})
+        axes.legend(patches, cat, title='Categories', loc="best")
         plt.setp(autotexts, size=12, weight="bold")
         plt.show()
         return super().general_info()
@@ -692,13 +835,19 @@ class PieChart(QualityTool):
 
 # 7th tool
 class CorrelationDiagram(QualityTool):
+    """
+    Correlation graph between two quantitative features.
+    """
     def __init__(self, list_1, list_2):
+        super().__init__()
         self.list1 = list_1
         self.list2 = list_2
 
     def keypoints_coordinates(self, list1, list2):
-        """Return the coordinates of the four points that will form the cross,
-        plus the coordinates of the intersection point."""
+        """
+        Return the coordinates of the four points that will form the cross,
+        plus the coordinates of the intersection point.
+        """
         med_1 = stat.median(list1)
         std_1 = stat.stdev(list1)
         med_2 = stat.median(list2)
@@ -712,24 +861,15 @@ class CorrelationDiagram(QualityTool):
         return left_point, right_point, down_point, up_point, central_point
 
     def plot(self):
-        #sns.regplot(self.list1, self.list2)
-        #sns.relplot(x=self.list1, y=self.list2, hue = self.list1)
-        g = sns.jointplot(self.list1, self.list2, kind="reg")
-        g.plot_joint(sns.kdeplot, color="r", zorder=0, levels=6)
-        #l_point, r_point, d_point, u_point, c_point = self.keypoints_coordinates(
-        #    self.list1, self.list2)
-        #hori_x_values = [l_point[0], r_point[0]]
-        #hori_y_values = [l_point[1], r_point[1]]
-        #vert_x_values = [d_point[0], u_point[0]]
-        #vert_y_values = [d_point[1], u_point[1]]
-        #plt.plot(hori_x_values, hori_y_values, color='orange')
-        #plt.plot(vert_x_values, vert_y_values, color='c')
-        # Zones identification
-        #plt.text(x=r_point[0]*0.9, y=u_point[1]*0.9, s='I',
-        #         bbox=dict(facecolor='none', edgecolor='k', pad=5.0))
-        #plt.text(x=r_point[0]*0.9, y=d_point[1]*1.1, s='II',
-        #         bbox=dict(facecolor='none', edgecolor='k', pad=5.0))
-        #plt.text(x=l_point[0]*0.9, y=d_point[1]*1.1, s='III',
-        #         bbox=dict(facecolor='none', edgecolor='k', pad=5.0))
-        #plt.text(x=l_point[0]*0.9, y=u_point[1]*0.9, s='IV',
-        #         bbox=dict(facecolor='none', edgecolor='k', pad=5.0))
+        """
+        Plot correlation diagram.
+        """
+        data = pd.DataFrame()
+        data['list_1'] = self.list1
+        data['list_2'] = self.list2
+        plot = sns.jointplot(data=data,
+                             kind="reg")
+        plot.plot_joint(sns.kdeplot,
+                        color="r",
+                        zorder=0,
+                        levels=6)

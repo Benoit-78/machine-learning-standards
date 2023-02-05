@@ -1,5 +1,6 @@
 """
 Author: B.Delorme
+Mail: delormebenoit211@gmail.com
 Creation date: 24th June 2021
 Main objective: to provide a support for k-means clustering.
 """
@@ -15,13 +16,30 @@ from sklearn.manifold import TSNE
 
 
 class KmeansIdentifier():
+    """
+    Provide methods to identify groups in a dataset through kmeans algorithm.
+    """
     def __init__(self, df):
+        """
+        df : pandas DataFrame
+            Data table.
+        """
         self.df = df
 
     def get_fitted_model(self, n_clust):
+        """
+        Parameters
+        ----------
+        n_clust : int
+            Number of clusters wanted.
+        Returns
+        -------
+        model : Kmeans model
+            Model fitted to the dataset.
+        """
         model = KMeans(n_clusters=n_clust)
-        X = self.df.to_numpy()
-        model = model.fit(X)
+        x_train = self.df.to_numpy()
+        model = model.fit(x_train)
         return model
 
     def get_labels(self, n_clust):
@@ -33,6 +51,16 @@ class KmeansIdentifier():
         return labels
 
     def get_kmeans_metrics(self, model):
+        """
+        Parameters
+        ----------
+        model : Kmeans model
+            Model fitted to a dataset.
+        Returns
+        -------
+        kmean_metrics : list of floats.
+            Metrics used to optimize predictions.
+        """
         labels = model.labels_
         inertia = model.inertia_
         calinski_harabasz = metrics.calinski_harabasz_score(self.df, labels)
@@ -60,13 +88,13 @@ class KmeansIdentifier():
                         legend='full',
                         s=5)
 
-    def kmeans_on_feature(self, my_feature, n_clust):
+    def kmeans_on_feature(self, column, n_clust):
         """
         Represent the disparities between k-means groups for one feature of the
         original dataframe.
         """
         if 'k-means_labels' not in list(self.df.columns):
-            self.get_kmeans_df(n_clust)
+            self.df['k-means_labels'] = self.get_labels(n_clust)
         n_clust = self.df['k-means_labels'].nunique()
         # Séparation des groupes
         groupe_df_list = []
