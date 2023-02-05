@@ -399,9 +399,6 @@ class EdaExplorator():
         Provide visualisation tools for Exploratory Data Analysis.
         """
         def __init__(self, outer):
-            """
-            Retrieve mother class's arguments.
-            """
             self.outer = outer
 
         def dataset_plot(self):
@@ -449,6 +446,9 @@ class EdaExplorator():
                      marker='o', markersize=1)
 
         def plot_memory_usage_per_sample(self, chunk=20):
+            """
+            Plot the memory taken per each sample.
+            """
             memories = []
             for i in range(self.outer.df.shape[0]):
                 memory = self.outer.df.iloc[i].memory_usage(index=True,
@@ -886,9 +886,6 @@ class EdaExplorator():
         Provide visualisation tools for Exploratory Data Analysis.
         """
         def __init__(self, outer):
-            """
-            Retrieve mother class's arguments.
-            """
             self.outer = outer
 
         def plot_occurences(self, cat_dict, time_period, date_column):
@@ -900,30 +897,31 @@ class EdaExplorator():
             occurences = list(cat_dict.values())
             msg = 'Samples occurence over {}s, \ncolumn \'{}\''
             plt.title(msg.format(time_period, date_column))
-
-        def plot_date_formats(self, date_columns):
-            """
-            Display the different formats of date in the dataframe.
-            """
-            spec_char = ['/', ':']
-            french_months = {'January': 'Janvier',
-                             'February': 'Février',
-                             'March': 'Mars',
-                             'April': 'Avril',
-                             'May': 'Mai',
-                             'June': 'Juin',
-                             'July': 'Juillet',
-                             'August': 'Août',
-                             'September': 'Septembre',
-                             'October': 'Octobre',
-                             'November': 'Novembre',
-                             'December': 'Décembre'}
-            temp_df = self.df.sample(frac=0.1)
-            for column in date_columns:
-                print(column)
             plt.xticks(rotation=45)
             sns.barplot(x=categories, y=occurences,
                         edgecolor='0', color='orange', alpha=0.75)
+
+        # def plot_date_formats(self, date_columns):
+        #     """
+        #     Display the different formats of date in the dataframe.
+        #     """
+        #     spec_char = ['/', ':']
+        #     french_months = {'January': 'Janvier',
+        #                      'February': 'Février',
+        #                      'March': 'Mars',
+        #                      'April': 'Avril',
+        #                      'May': 'Mai',
+        #                      'June': 'Juin',
+        #                      'July': 'Juillet',
+        #                      'August': 'Août',
+        #                      'September': 'Septembre',
+        #                      'October': 'Octobre',
+        #                      'November': 'Novembre',
+        #                      'December': 'Décembre'}
+        #     temp_df = self.outer.df.sample(frac=0.1)
+        #     for column in date_columns:
+        #         print(column)
+        #     return temp_df
 
         def plot_month_occurences(self, date_column):
             """
@@ -980,8 +978,7 @@ class EdaExplorator():
 
         def plot_average_by_month(self, value_column, date_column):
             """
-            Tool for visualisation of average value of given column for each
-            month.
+            Tool for visualisation of average value of given column per month.
             """
             cat_dict = self.outer.time_computer.average_by_month(value_column,
                                                                  date_column)
@@ -991,8 +988,7 @@ class EdaExplorator():
 
         def plot_average_by_weeknumber(self, value_column, date_column):
             """
-            Tool for visualisation of average value of given column for each
-            week.
+            Tool for visualisation of average value of given column per week.
             """
             cat_dict = self.outer.time_computer.average_by_week(value_column,
                                                                 date_column)
