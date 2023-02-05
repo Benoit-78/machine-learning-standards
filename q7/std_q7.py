@@ -96,7 +96,7 @@ class Histogram(QualityTool):
             remove_currency_symbols()
             replace_empty_strings()
             replace_comma_by_points()
-            make_floats()
+        make_floats()
         return pd.Series(self.data)
 
     def data_without_outliers(self):
@@ -485,15 +485,15 @@ class SpecialCauseDetector():
         """
         indic_list = []
         for value in self.values:
-            cond_1 = (value - self.mean > (self.ucl - self.lcl) / 3)
-            cond_2 = (value < self.ucl)
-            cond_3 = (value - self.mean < -(self.ucl - self.lcl) / 3)
-            cond_4 = (value > self.lcl)
+            upper_value = (value - self.mean > (self.ucl - self.lcl) / 3)
+            upper_outlier = (value > self.ucl)
+            lower_value = (value - self.mean < -(self.ucl - self.lcl) / 3)
+            lower_outlier = (value < self.lcl)
             # Partie sup
-            if cond_1 and cond_2:
+            if upper_value and not upper_outlier:
                 indic_list.append(1)
             # Partie inf
-            if cond_3 and cond_4:
+            if lower_value and not lower_outlier:
                 indic_list.append(-1)
             else:
                 indic_list.append(0)
@@ -531,15 +531,15 @@ class SpecialCauseDetector():
         """
         indic_list = []
         for value in self.values:
-            cond_1 = (value - self.mean > (self.ucl - self.lcl) / 6)
-            cond_2 = (value < self.ucl)
-            cond_3 = (value - self.mean < -(self.ucl - self.lcl) / 6)
-            cond_4 = (value > self.lcl)
+            upper_value = (value - self.mean > (self.ucl - self.lcl) / 6)
+            upper_outlier = (value > self.ucl)
+            lower_value = (value - self.mean < -(self.ucl - self.lcl) / 6)
+            lower_outlier = (value < self.lcl)
             # Partie sup
-            if cond_1 and cond_2:
+            if upper_value and not upper_outlier:
                 indic_list.append(1)
             # Partie inf
-            if cond_3 and cond_4:
+            if lower_value and not lower_outlier:
                 indic_list.append(-1)
             else:
                 indic_list.append(0)
