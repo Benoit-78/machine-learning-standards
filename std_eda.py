@@ -444,8 +444,29 @@ class EdaExplorator():
             plt.grid(axis='x')
             plt.grid(axis='y')
             plt.ylim((0, 1.1))
-            x_axis = [i*chunk for i, element in enumerate(nan_s)]
+            x_axis = [i*chunk for i, _ in enumerate(nan_s)]
             plt.plot(x_axis, nan_s, linewidth=0,
+                     marker='o', markersize=1)
+
+        def plot_memory_usage_per_sample(self, chunk=20):
+            memories = []
+            for i in range(self.outer.df.shape[0]):
+                memory = self.outer.df.iloc[i].memory_usage(index=True,
+                                                            deep=True)
+                # pandas returns bytes by defaults.
+                memory = memory / 1024 ** 2
+                memories.append(memory)
+            # Average
+            memories = pd.Series(memories)
+            memories = memories.groupby(np.arange(memories.shape[0]) // chunk).mean()
+            # Plot
+            plt.figure(figsize=(15, 5))
+            plt.title('Memory per sample\nAverages on {} samples.'.format(chunk))
+            plt.grid(axis='x')
+            plt.grid(axis='y')
+            plt.ylim((0, 1.1 * max(memories)))
+            x_axis = [i * chunk for i, _ in enumerate(memories)]
+            plt.plot(x_axis, memories, linewidth=0,
                      marker='o', markersize=1)
 
         def plot_data_per_column(self):
@@ -879,6 +900,27 @@ class EdaExplorator():
             occurences = list(cat_dict.values())
             msg = 'Samples occurence over {}s, \ncolumn \'{}\''
             plt.title(msg.format(time_period, date_column))
+
+        def plot_date_formats(self, date_columns):
+            """
+            Display the different formats of date in the dataframe.
+            """
+            spec_char = ['/', ':']
+            french_months = {'January': 'Janvier',
+                             'February': 'Février',
+                             'March': 'Mars',
+                             'April': 'Avril',
+                             'May': 'Mai',
+                             'June': 'Juin',
+                             'July': 'Juillet',
+                             'August': 'Août',
+                             'September': 'Septembre',
+                             'October': 'Octobre',
+                             'November': 'Novembre',
+                             'December': 'Décembre'}
+            temp_df = self.df.sample(frac=0.1)
+            for column in date_columns:
+                print(column)
             plt.xticks(rotation=45)
             sns.barplot(x=categories, y=occurences,
                         edgecolor='0', color='orange', alpha=0.75)
