@@ -588,6 +588,20 @@ class EdaExplorator():
             plt.setp(autotexts, size=12, weight="bold")
             plt.show()
 
+        def plot_inflow_by_date(self, date_column):
+            """
+            Plot the amount of samples per day. The day is extracted from the
+            given date_column.
+            """
+            aggreg_df = self.outer.df.copy()
+            aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
+            aggreg_df = aggreg_df.groupby(by=date_column).sum()
+            aggreg_df['Cumulated sum'] = aggreg_df['Count by date'].cumsum()
+            dates = list(aggreg_df.index)
+            plt.title('Flow of samples over time')
+            plt.xticks(rotation=45, ha='right')
+            plt.fill_between(dates, aggreg_df['Cumulated sum'])
+
         def plot_feature(self, column, rate=0.001, quant_sup=1, quant_inf=0):
             """
             Return a visual representation for the given column.
@@ -665,19 +679,6 @@ class EdaExplorator():
             else:
                 result = 'Feature type error'
             return result
-
-        def plot_inflow_by_date(self, date_column):
-            """
-            Plot the amount of samples per day. The day is extracted from the
-            given date_column.
-            """
-            aggreg_df = self.outer.df.copy()
-            aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
-            aggreg_df = aggreg_df.groupby(by=date_column).sum()
-            aggreg_df['Cumulated sum'] = aggreg_df['Count by date'].cumsum()
-            dates = list(aggreg_df.index)
-            plt.title('Flow of samples over time')
-            plt.fill_between(dates, aggreg_df['Cumulated sum'])
 
         def qualitative_heatmap(self, featuretype='qualitative'):
             """
