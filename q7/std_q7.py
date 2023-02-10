@@ -50,7 +50,7 @@ class QualityTool():
         temp_df = pd.DataFrame(
             columns=['Value'],
             index=['Purpose', 'Scale', 'Process', 'Line',
-                   'Product', 'Date', 'Shift', 'Divers'],
+                   'Product', 'Date'],
             data=[self.purpose, self.scale, self.process, self.line,
                   self.product, self.datetime])
         return temp_df
