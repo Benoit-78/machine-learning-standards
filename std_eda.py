@@ -17,7 +17,7 @@ import pandas as pd
 import scipy.stats as ss
 import seaborn as sns
 
-from q7 import std_q7 as q7
+from .q7 import std_q7 as q7
 
 
 
@@ -190,8 +190,8 @@ class EdaExplorator():
             Can be either binary, quantitative, qualitative, or qualitative
             of low cardinality (low_cardinality).
             """
-            self.outer.df[column].dropna(inplace=True)
-            unique_values = self.outer.df[column].nunique()
+            temp_series = self.outer.df[column].dropna()
+            unique_values = temp_series.nunique()
             if unique_values == 2:
                 feat_type = 'binary'
             elif unique_values in [3, 4]:
@@ -264,6 +264,14 @@ class EdaExplorator():
                 if feat_type == 'quantitative':
                     quantitative_df[column] = self.outer.df[column]
             return quantitative_df
+
+        def fillna_with_trimean(self, column):
+            quantile_25 = self.outer.df[column].quantile(0.25)
+            median = self.outer.df[column].median()
+            quantile_75 = self.outer.df[column].quantile(0.75)
+            trimean = (quantile_25 + 2*median + quantile_75) / 4
+            self.outer.df[column].fillna(trimean, inplace=True)
+            return self.outer.df
 
 
 
@@ -588,20 +596,6 @@ class EdaExplorator():
             plt.setp(autotexts, size=12, weight="bold")
             plt.show()
 
-        def plot_inflow_by_date(self, date_column):
-            """
-            Plot the amount of samples per day. The day is extracted from the
-            given date_column.
-            """
-            aggreg_df = self.outer.df.copy()
-            aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
-            aggreg_df = aggreg_df.groupby(by=date_column).sum()
-            aggreg_df['Cumulated sum'] = aggreg_df['Count by date'].cumsum()
-            dates = list(aggreg_df.index)
-            plt.title('Flow of samples over time')
-            plt.xticks(rotation=45, ha='right')
-            plt.fill_between(dates, aggreg_df['Cumulated sum'])
-
         def plot_feature(self, column, rate=0.001, quant_sup=1, quant_inf=0):
             """
             Return a visual representation for the given column.
@@ -679,6 +673,19 @@ class EdaExplorator():
             else:
                 result = 'Feature type error'
             return result
+
+        def plot_inflow_by_date(self, date_column):
+            """
+            Plot the amount of samples per day. The day is extracted from the
+            given date_column.
+            """
+            aggreg_df = self.outer.df.copy()
+            aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
+            aggreg_df = aggreg_df.groupby(by=date_column).sum()
+            aggreg_df['Cumulated sum'] = aggreg_df['Count by date'].cumsum()
+            dates = list(aggreg_df.index)
+            plt.title('Flow of samples over time')
+            plt.fill_between(dates, aggreg_df['Cumulated sum'])
 
         def qualitative_heatmap(self, featuretype='qualitative'):
             """
@@ -786,13 +793,13 @@ class EdaExplorator():
                          #plot_kws={'s':2, 'alpha':0.2}
                          )
 
-        def qualitative_correlations_df(self, column_1, column_2, replace_0=False):
+        def qualitative_correlations_df(self, column_1, column_2):
             """
             Returns a table of the correlations between categories of two
             qualitative series.
             """
             def correlations_dataframe(column_1, column_2):
-                clean_df = self.outer.df[[column_1, column_2]].dropna()
+                clean_df = self.outer.df[[column_1, column_2]].dropna().copy()
                 serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
                 counter_1 = dict(Counter(serie_1))
                 counter_2 = dict(Counter(serie_2))
@@ -808,18 +815,14 @@ class EdaExplorator():
                 return correlations_df
 
             def min_and_max(correlations_df):
-                v_min = min(list(correlations_df.min()))
-                v_max = max(list(correlations_df.max()))
-                if v_min > 0:
-                    v_min = 0
-                if self.outer.computer.df_max(correlations_df) < 0:
-                    v_max = 0
+                min_min = min(list(correlations_df.min()))
+                max_max = max(list(correlations_df.max()))
+                v_min = min(0, min_min)
+                v_max = max(max_max, 0)
                 return v_min, v_max
 
             correlations_df = correlations_dataframe(column_1, column_2)
             v_min, v_max = min_and_max(correlations_df)
-            if replace_0:
-                correlations_df = correlations_df.replace(0, '')
             return correlations_df.style.bar(color='lightblue',
                                              vmin=v_min, vmax=v_max)
 
