@@ -799,7 +799,7 @@ class EdaExplorator():
             qualitative series.
             """
             def correlations_dataframe(column_1, column_2):
-                clean_df = self.outer.df[[column_1, column_2]].dropna().copy()
+                clean_df = self.outer.df[[column_1, column_2]].copy().dropna()
                 serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
                 counter_1 = dict(Counter(serie_1))
                 counter_2 = dict(Counter(serie_2))
