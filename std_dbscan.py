@@ -106,13 +106,14 @@ class DbscanClassifier():
         average = sum(labels_counter.values()) / n_clusters
         average = int(average)
         # Davies-Bouldin metrics
-        non_noise_df = self.dataframe[self.dataframe['DBSCAN label']!=-1]
-        if non_noise_df['DBSCAN label'].nunique()==1:
+        noise_free_df = self.dataframe[self.dataframe['DBSCAN label']!=-1]
+        if noise_free_df['DBSCAN label'].nunique()==1:
             print('WARNING: Only one cluster. Davies-Bouldin score set to 1.')
             davies_bouldin = 1
-        elif non_noise_df.shape[0] > 1:
-            davies_bouldin = davies_bouldin_score(non_noise_df,
-                                                  non_noise_df['DBSCAN label'])
+        elif noise_free_df.shape[0] > 1:
+            davies_bouldin = davies_bouldin_score(noise_free_df,
+                                                  noise_free_df['DBSCAN label']
+                                                  )
             davies_bouldin = round(davies_bouldin, 2)
         else:
             print('WARNING: Only noise points. Davies-Bouldin score set to 1.')
