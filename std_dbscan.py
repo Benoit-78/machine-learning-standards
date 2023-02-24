@@ -9,6 +9,7 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
 from sklearn.cluster import DBSCAN
@@ -28,18 +29,19 @@ class DbscanClassifier():
                     a point to be considered as a core point.
         leaf_size : leaf size passed to BallTree or cKDTree.
         """
-        self.dataframe = dataframe
+        self.dataframe = dataframe.copy()
         self.eps = eps
-        self.min_samples=min_samples
+        self.min_samples = min_samples
         self.leaf_size = leaf_size
 
     def get_fitted_model(self):
         """
-        Fit dbscan on the given dataframe.
+        Fit DBSCAN on the given dataframe.
         """
         model = DBSCAN(eps=self.eps,
                        min_samples=self.min_samples,
-                       leaf_size=self.leaf_size)
+                       leaf_size=self.leaf_size,
+                       n_jobs=-1)
         model.fit(self.dataframe)
         return model
 
@@ -50,32 +52,35 @@ class DbscanClassifier():
         model = self.get_fitted_model()
         labels = model.labels_
         # Special case of only noise points
-        if len(Counter(labels)) == 1:
+        only_one_label = (pd.Series(labels).nunique() == 1)
+        noise_points = (pd.Series(labels).unique()[0] == -1)
+        if only_one_label and noise_points:
             print('Only noise points')
-        self.dataframe['DBSCAN label'] = labels
+        self.dataframe['DBSCAN label'] = pd.Series(labels)
 
     def plot_dbscan_in_tsne(self):
         """
         Projection in t-SNE with dbscan labels as colors.
         """
-        if 'DBSCAN label' not in list(self.dataframe.columns):
-            self.add_labels()
+        model = self.get_fitted_model()
         # Cluster sizes
-        labels = self.dataframe['DBSCAN label'].nunique()
-        n_clust = labels - (1 if -1 in self.dataframe['DBSCAN label'] else 0)
+        labels = pd.Series(model.labels_)
+        noise = (1 if -1 in list(labels) else 0)
+        n_clusters = labels.nunique() - noise
         # t-SNE
-        tsne_df = self.dataframe.drop('DBSCAN label', axis=1)
         tsne = TSNE(n_components=2, random_state=0)
-        tsne_res = tsne.fit_transform(tsne_df)
-        dbscan_lab = np.expand_dims(self.dataframe['DBSCAN label'], axis=1)
+        tsne_res = tsne.fit_transform(self.dataframe)
+        dbscan_lab = np.expand_dims(labels, axis=1)
         tsne_res_add = np.append(tsne_res, dbscan_lab, axis=1)
         # Plot
-        plt.title('DBSCAN groups in t-SNE plan')
+        plt.figure(figsize=(8, 8))
+        plt.title('{} DBSCAN clusters in t-SNE plan'.format(n_clusters))
         sns.scatterplot(x=tsne_res_add[:, 0],
                         y=tsne_res_add[:, 1],
-                        hue=tsne_res_add[:, 2],
-                        palette=sns.hls_palette(n_clust, as_cmap=True),
-                        legend='full', s=5)
+                        hue=tsne_res_add[:, 2], s=80, edgecolors='black',
+                        alpha=0.7,
+                        palette=sns.hls_palette(n_clusters, as_cmap=True))
+        plt.axis('square')
 
     def get_standard_metrics(self):
         """
@@ -83,33 +88,40 @@ class DbscanClassifier():
         Some of them will be used for computation of a cost function.
         """
         model = self.get_fitted_model()
-        labels = model.labels_
-        # Number of samples
-        n_samples = self.dataframe.shape[0]
-        # Number of groups
+        if 'DBSCAN label' not in list(self.dataframe.columns):
+            self.add_labels()
+        labels = pd.Series(model.labels_)
         labels_counter = dict(Counter(labels))
-        n_groups = len(labels_counter)
         # Number of noise points
         if -1 in labels_counter.keys():
             n_noise = labels_counter[-1]
             labels_counter.pop(-1)
         else:
-            n_noise = "No noise point."
+            print("INFO: No noise point.")
+            n_noise = 0
         # Biggest group size
         n_biggest = max(labels_counter.values())
         # Average group size
-        counts = list(labels_counter.values())
-        average = sum(counts) / len(counts)
+        n_clusters = len(labels_counter)
+        average = sum(labels_counter.values()) / n_clusters
         average = int(average)
         # Davies-Bouldin metrics
-        temp_df = self.dataframe[self.dataframe['DBSCAN label']!=-1]
-        davies_bouldin = davies_bouldin_score(temp_df, temp_df['DBSCAN label'])
-        davies_bouldin = round(davies_bouldin, 2)
+        non_noise_df = self.dataframe[self.dataframe['DBSCAN label']!=-1]
+        if non_noise_df['DBSCAN label'].nunique()==1:
+            print('WARNING: Only one cluster. Davies-Bouldin score set to 1.')
+            davies_bouldin = 1
+        elif non_noise_df.shape[0] > 1:
+            davies_bouldin = davies_bouldin_score(non_noise_df,
+                                                  non_noise_df['DBSCAN label'])
+            davies_bouldin = round(davies_bouldin, 2)
+        else:
+            print('WARNING: Only noise points. Davies-Bouldin score set to 1.')
+            davies_bouldin = 1
         # Result
-        metrics_dict = {"Number of samples": n_samples,
-                        "Number of groups": n_groups,
-                        "Number of noise points": n_noise,
-                        "Biggest group size": n_biggest,
-                        "Average group size": average,
-                        "Davies-Boudin metrics": davies_bouldin}
+        metrics_dict = {"n_samples": self.dataframe.shape[0],
+                        "n_clusters": n_clusters,
+                        "n_noise": n_noise,
+                        "n_biggest": n_biggest,
+                        "average": average,
+                        "davies_bouldin": davies_bouldin}
         return metrics_dict
