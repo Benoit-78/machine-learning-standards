@@ -49,7 +49,7 @@ class FeatureEngineer():
 
     def replace_rare_categories(self, column, rate=0.001):
         """
-        In the given column, replaces the rare values with the strong 'others',
+        In the given column, replaces the rare values with the stroyng 'others',
         to prevent umpteen rare categories to parasite future algorithm
         predictions.
         """
@@ -109,8 +109,8 @@ class FeatureEngineer():
         """
         quant_columns = []
         for column in sub_df.columns:
-            not_an_object = (self.dataframe[column].dtype != 'object')
-            not_boolean = (self.dataframe[column].nunique() > 4)
+            not_an_object = (sub_df[column].dtype != 'object')
+            not_boolean = (sub_df[column].nunique() > 4)
             if not_an_object and not_boolean:
                 quant_columns.append(column)
         if mode == 'std':
@@ -119,7 +119,7 @@ class FeatureEngineer():
             scaler = MinMaxScaler()
         else:
             return print('Non valid mode.')
-        scaled_df = scaler.fit_transform(np.array(self.dataframe[quant_columns]))
+        scaled_df = scaler.fit_transform(np.array(sub_df[quant_columns]))
         scaled_df = pd.DataFrame(scaled_df, columns=quant_columns)
         for column in quant_columns:
             sub_df[column] = list(scaled_df[column])
@@ -156,3 +156,13 @@ class FeatureEngineer():
                         palette=sns.hls_palette(n_clust),
                         legend='full',
                         s=5)
+
+
+def get_today_date():
+    """Get today data, to be included in future directory names."""
+    today_date = str(datetime.now())
+    today_date = today_date.replace(' ', '_')
+    today_date = today_date.replace(':', '')
+    today_date = today_date.replace('-', '')
+    today_date = today_date.split('.', maxsplit=1)[0]
+    return today_date
