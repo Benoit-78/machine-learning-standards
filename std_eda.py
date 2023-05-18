@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Author: Benoît DELORME
-Mail: delormebenoit211@gmail.com
-Creation date: 23rd June 2021
-Main objective: provide a support for exploratory data analysis.
+    Author: Benoît DELORME
+    Mail: delormebenoit211@gmail.com
+    Creation date: 23rd June 2021
+    Main objective: provide a support for exploratory data analysis.
 """
 
 import math
 import statistics as stat
-
 from collections import Counter
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,15 +20,11 @@ from .q7 import std_q7 as q7
 
 
 class Sampler():
-    """
-    Provide sampling strategies.
-    """
+    """Provide sampling strategies."""
     def __init__(self, dataframe, fraction):
         """
-        df :
-            pd.DataFrame
-        fraction : float in [0; 1]
-            Fraction of the dataframe taken.
+        dataframe: pd.DataFrame
+        fraction : float in [0; 1], fraction of the dataframe taken.
         """
         self.dataframe = dataframe
         self.frac = fraction
@@ -619,10 +613,8 @@ class EdaExplorator():
             plt.show()
 
         def plot_feature_evolution_per_sample(self, column):
-            """
-            For the given column, plot the evolution of values along all
-            samples.
-            """
+            """For the given column, plot the evolution of values along all
+            samples."""
             featuretype = self.outer.computer.feature_type(column)
             plt.title('Feature \'{}\' evolution over samples'.format(column))
             if featuretype in ['quantitative', 'binary']:
@@ -645,10 +637,8 @@ class EdaExplorator():
             return result
 
         def plot_feature_evolution_per_datetime(self, column, date_column):
-            """
-            For the given column, plot the evoluation of values along the given
-            date column.
-            """
+            """For the given column, plot the evoluation of values along the given
+            date column."""
             featuretype = self.outer.computer.feature_type(column)
             plt.title('Feature \'{}\' evolution over time'.format(column))
             if featuretype in ['quantitative', 'binary']:
@@ -675,10 +665,8 @@ class EdaExplorator():
             return result
 
         def plot_inflow_by_date(self, date_column):
-            """
-            Plot the amount of samples per day. The day is extracted from the
-            given date_column.
-            """
+            """Plot the amount of samples per day. The day is extracted from the
+            given date_column."""
             aggreg_df = self.outer.df.copy()
             aggreg_df['Count by date'] = [1] * aggreg_df.shape[0]
             aggreg_df = aggreg_df.groupby(by=date_column).sum()
@@ -688,9 +676,7 @@ class EdaExplorator():
             plt.fill_between(dates, aggreg_df['Cumulated sum'])
 
         def qualitative_heatmap(self, featuretype='qualitative'):
-            """
-            Return a heatmap of correlations between qualitative columns.
-            """
+            """Return a heatmap of correlations between qualitative columns."""
             def cramers_v(serie_1, serie_2):
                 """Cramers V statistic for categorial-categorial association.
                 Journal of the Korean Statistical Society 42 (2013): 323-328"""
@@ -706,10 +692,8 @@ class EdaExplorator():
                 return np.sqrt(phi2corr / min((kcorr - 1), (rcorr - 1)))
 
             def temp_qualitative_dataframe(featuretype):
-                """
-                Return a fraction of self.dataframe, with qualitative columns
-                only.
-                """
+                """Return a fraction of self.dataframe, with qualitative columns
+                only."""
                 if featuretype == 'qualitative':
                     qualitative_df = self.outer.computer.qualitative_dataframe()
                 elif featuretype == 'binary':
@@ -717,10 +701,8 @@ class EdaExplorator():
                 return qualitative_df
 
             def get_correlations_df(qualitative_df):
-                """
-                Return a dataframe containing the correlation between
-                qualitative features of self.dataframe.
-                """
+                """Return a dataframe containing the correlation between
+                qualitative features of self.dataframe."""
                 # Dataframe of coefficients
                 correlations_df = pd.DataFrame(index=list(qualitative_df.columns))
                 dynamic_columns_list = list(qualitative_df.columns).copy()
@@ -760,9 +742,7 @@ class EdaExplorator():
                               fontdict={'fontsize': 15}, pad=12)
 
         def quantitative_heatmap(self):
-            """
-            Return a heatmap of correlations between quantitative columns.
-            """
+            """Return a heatmap of correlations between quantitative columns."""
             quant_df = self.outer.computer.quantitative_dataframe()
             corr_df = quant_df.corr()
             mask = np.triu(np.ones_like(corr_df, dtype=bool))
@@ -785,21 +765,17 @@ class EdaExplorator():
                               fontdict={'fontsize': 15}, pad=12)
 
         def quantitative_correlations_pairplot(self):
-            """
-            Pairplot of correlations between quantitative columns.
-            """
+            """Pairplot of correlations between quantitative columns."""
             sns.pairplot(self.outer.computer.quantitative_dataframe(),
                          #height=1.5,
                          #plot_kws={'s':2, 'alpha':0.2}
                          )
 
         def qualitative_correlations_df(self, column_1, column_2):
-            """
-            Returns a table of the correlations between categories of two
-            qualitative series.
-            """
+            """Returns a table of the correlations between categories of two
+            qualitative series."""
             def correlations_dataframe(column_1, column_2):
-                clean_df = self.outer.df[[column_1, column_2]].copy().dropna()
+                clean_df = self.outer.df[[column_1, column_2]].dropna().copy()
                 serie_1, serie_2 = clean_df[column_1], clean_df[column_2]
                 counter_1 = dict(Counter(serie_1))
                 counter_2 = dict(Counter(serie_2))
@@ -886,17 +862,13 @@ class EdaExplorator():
 
 
     class TimestampDisplayer():
-        """
-        Provide visualisation tools for Exploratory Data Analysis.
-        """
+        """Provide visualisation tools for Exploratory Data Analysis."""
         def __init__(self, outer):
             self.outer = outer
 
         def plot_occurences(self, cat_dict, time_period, date_column):
-            """
-            Back-end visualisation tool for time data.
-            To be used by methods of class TimeStampDisplayer.
-            """
+            """Back-end visualisation tool for time data.
+            To be used by methods of class TimeStampDisplayer."""
             categories = list(cat_dict.keys())
             occurences = list(cat_dict.values())
             msg = 'Samples occurence over {}s, \ncolumn \'{}\''
@@ -928,50 +900,38 @@ class EdaExplorator():
         #     return temp_df
 
         def plot_month_occurences(self, date_column):
-            """
-            Tool for visualisation of months repartition.
-            """
+            """Tool for visualisation of months repartition."""
             cat_dict = self.outer.time_computer.month_occurences(date_column)
             time_period = 'month'
             self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_weeknb_occurences(self, date_column):
-            """
-            Tool for visualisation of weeks repartition.
-            """
+            """Tool for visualisation of weeks repartition."""
             cat_dict = self.outer.time_computer.weeknb_occurences(date_column)
             time_period = 'week number'
             self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_hour_occurences(self, date_column):
-            """
-            Tool for visualisation of hours repartition.
-            """
+            """Tool for visualisation of hours repartition."""
             cat_dict = self.outer.time_computer.hour_occurences(date_column)
             time_period = 'hour'
             self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_weekday_occurences(self, date_column):
-            """
-            Tool for visualisation of weekdays repartition.
-            """
+            """Tool for visualisation of weekdays repartition."""
             cat_dict = self.outer.time_computer.weekday_occurences(date_column)
             time_period = 'week day'
             self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_monthday_occurences(self, date_column):
-            """
-            Tool for visualisation of monthdays repartition.
-            """
+            """Tool for visualisation of monthdays repartition."""
             cat_dict = self.outer.time_computer.monthday_occurences(date_column)
             time_period = 'month day'
             self.plot_occurences(cat_dict, time_period, date_column)
 
         def plot_averages(self, cat_dict, time_period, value_col, date_col):
-            """
-            Back-end visualisation tool for time data.
-            To be used by methods of class TimeStampDisplayer.
-            """
+            """Back-end visualisation tool for time data.
+            To be used by methods of class TimeStampDisplayer."""
             categories = list(cat_dict.keys())
             occurences = list(cat_dict.values())
             title = 'Averages of column \'{}\' over {}s.\nTime series: \'{}\''
@@ -981,9 +941,7 @@ class EdaExplorator():
                         edgecolor='0', color='blue', alpha=0.75)
 
         def plot_average_by_month(self, value_column, date_column):
-            """
-            Tool for visualisation of average value of given column per month.
-            """
+            """Tool for visualisation of average value of given column per month."""
             cat_dict = self.outer.time_computer.average_by_month(value_column,
                                                                  date_column)
             time_period = 'month'
@@ -991,9 +949,7 @@ class EdaExplorator():
                                value_column, date_column)
 
         def plot_average_by_weeknumber(self, value_column, date_column):
-            """
-            Tool for visualisation of average value of given column per week.
-            """
+            """Tool for visualisation of average value of given column per week."""
             cat_dict = self.outer.time_computer.average_by_week(value_column,
                                                                 date_column)
             time_period = 'weeknumber'

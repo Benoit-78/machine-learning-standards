@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Author: Benoît DELORME
-Mail: delormebenoit211@gmail.com
-Creation date: 23rd June 2021
-Main objective: provide a support for feature engineering
+    Author: Benoît DELORME
+    Mail: delormebenoit211@gmail.com
+    Creation date: 23rd June 2021
+    Main objective: provide a support for feature engineering
 """
 
 import matplotlib.pyplot as plt
