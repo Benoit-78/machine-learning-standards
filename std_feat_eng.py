@@ -10,10 +10,53 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import shap
+from lime.lime_text import LimeTextExplainer
+
+
+
+def show_lime_in_notebook(y_train, X_test):
+    """Show LIME in jupyter notebook."""
+    class_names = list(y_train.unique())
+    explainer = LimeTextExplainer(class_names=class_names)
+    vectorizer = TfidfVectorizer(lowercase=False)
+    multinomial_nb = MultinomialNB(alpha=.01)
+    pipeline = make_pipeline(vectorizer, multinomial_nb)
+    idx = 1340
+    exp = explainer.explain_instance(X_test.data[idx],
+                                     pipeline.predict_proba,
+                                     num_features=6,
+                                     top_labels=2)
+
+
+def shap_repr(model, X_train, y_train):
+    """
+    Reference document:
+    https://docs.seldon.io/projects/alibi/en/latest/methods/KernelSHAP.html
+    """
+    dtrain = xgb.DMatrix(np.array(X_train), list(y_train))
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(dtrain)
+    shap.summary_plot(shap_values, X_train)
+    shap.plots.beeswarm(shap_values)
+    shap.plots.bar(shap_values)
+    shap.plots.force(shap_test[0])
+
+
+def neat_int(t_int):
+    """Transforms a number in a standardized integer."""
+    return '{:,.0f}'.format(t_int)
+
+
+def neat_float(t_float):
+    """Transforms a number in a standardized float."""
+    return '{:,.2f}'.format(t_float)
 
 
 
@@ -22,9 +65,7 @@ class FeatureEngineer():
     Class designed to facilitate the Feature Engineering of a dataset.
     """
     def __init__(self, dataframe):
-        """
-        Dataframe to be engineered.
-        """
+        """Dataframe to be engineered."""
         self.dataframe = dataframe
 
     def category_frequencies_df(self, column):
@@ -104,9 +145,7 @@ class FeatureEngineer():
         return self.dataframe
 
     def scale_columns(self, sub_df, mode):
-        """
-        Scale quantitative columns to help further use of gradient descent.
-        """
+        """Scale quantitative columns to help further use of gradient descent."""
         quant_columns = []
         for column in sub_df.columns:
             not_an_object = (self.dataframe[column].dtype != 'object')
