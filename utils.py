@@ -62,3 +62,13 @@ def set_os_separator():
         print('# ERROR    | Wrong input for operating system')
         raise NameError
     return os_sep
+
+
+def get_today_date():
+    """Get today date, to be included in directory names."""
+    today_date = str(datetime.now())
+    today_date = today_date.replace(' ', '_')
+    today_date = today_date.replace(':', '')
+    today_date = today_date.replace('-', '')
+    today_date = today_date.split('.', maxsplit=1)[0]
+    return today_date
