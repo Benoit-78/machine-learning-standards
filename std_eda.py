@@ -1,17 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Author: Benoît DELORME
-Mail: delormebenoit211@gmail.com
-Creation date: 23rd June 2021
-Main objective: provide a support for exploratory data analysis.
+    Author: Benoît DELORME
+    Mail: delormebenoit211@gmail.com
+    Creation date: 23rd June 2021
+    Main objective: provide a support for exploratory data analysis.
 """
 
 import math
 import statistics as stat
-import platform
-
 from collections import Counter
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -21,39 +18,13 @@ import seaborn as sns
 from .q7 import std_q7 as q7
 
 
-def get_os_type():
-    """Get operating system kind: Windows or Linux"""
-    os_type = platform.platform()
-    os_type = os_type.split('-')[0]
-    if os_type.lower() not in ['windows', 'linux', 'mac', 'android']:
-        print('# ERROR    | Operating system cannot be identified')
-        raise OSError
-    return os_type
-
-
-def set_os_separator():
-    """Get separator specific to operating system: / or \\ """
-    os_type = get_os_type()
-    if not isinstance(os_type, str):
-        raise TypeError
-    if os_type == 'Windows':
-        os_sep = '\\'
-    elif os_type in ['Linux', 'Mac', 'Android']:
-        os_sep = '/'
-    else:
-        print('# ERROR    | Wrong input for operating system')
-        raise NameError
-    return os_sep
-
 
 class Sampler():
     """Provide sampling strategies."""
     def __init__(self, dataframe, fraction):
         """
-        df :
-            pd.DataFrame
-        fraction : float in [0; 1]
-            Fraction of the dataframe taken.
+        dataframe: pd.DataFrame
+        fraction : float in [0; 1], fraction of the dataframe taken.
         """
         self.dataframe = dataframe
         self.frac = fraction

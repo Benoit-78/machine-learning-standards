@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+    Author: B.Delorme
+    Mail: delormebenoit211@gmail.com
+    Creation date: 18 mai 2023
+    Main purpose: divers functions.
+"""
+
+import platform
+
+
+
 def pretty_log(log_level, message, metrics_value, metrics_unit):
     """Print a standardized log messag, to facilitate log reading in the stdout"""
     # ==========
@@ -25,3 +37,28 @@ def print_debug_message(func):
                                            execution_time))
         return return_value
     return wrapper
+
+
+def get_os_type():
+    """Get operating system kind: Windows or Linux"""
+    os_type = platform.platform()
+    os_type = os_type.split('-')[0]
+    if os_type.lower() not in ['windows', 'linux', 'mac', 'android']:
+        print('# ERROR    | Operating system cannot be identified')
+        raise OSError
+    return os_type
+
+
+def set_os_separator():
+    """Get separator specific to operating system: / or \\ """
+    os_type = get_os_type()
+    if not isinstance(os_type, str):
+        raise TypeError
+    if os_type == 'Windows':
+        os_sep = '\\'
+    elif os_type in ['Linux', 'Mac', 'Android']:
+        os_sep = '/'
+    else:
+        print('# ERROR    | Wrong input for operating system')
+        raise NameError
+    return os_sep
