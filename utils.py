@@ -7,7 +7,30 @@
 """
 
 import platform
+import time
+from datetime import datetime
+import tracemalloc
 
+
+def time_log(start_time):
+    """Provide divers information on program execution length, and memory taken."""
+    # Run time
+    log_messages = ['', '=', "  Programm successfully executed.  "]
+    time_delta = round(time.time() - start_time, 1)
+    log_messages.append("  Run time ....... " + str(time_delta) + " s")
+    # End run time
+    now = datetime.now()
+    dt_string = now.strftime("%H:%M:%S")
+    log_messages.append("  Run ended at ... " + str(dt_string))
+    # Memory
+    memory_peak = round(float(tracemalloc.get_traced_memory()[1]) / 1024**2, 3)
+    log_messages.append("  Memory peak .... " + "%d MB" % memory_peak)
+    # Decoration
+    decoration = ''.join(['='] * len(log_messages[2]))
+    log_messages[1] = decoration
+    log_messages.append(decoration)
+    log_messages.append('')
+    print("\n".join(log_messages))
 
 
 def pretty_log(log_level, message, metrics_value, metrics_unit):
@@ -25,9 +48,7 @@ def pretty_log(log_level, message, metrics_value, metrics_unit):
 
 
 def print_debug_message(func):
-    """
-    Decorator to help debugging. Displays function name & execution time.
-    """
+    """Decorator to help debugging. Displays function name & execution time."""
     def wrapper(*func_args, **func_kwargs):
         time_start = time.time()
         return_value = func(*func_args, **func_kwargs)
