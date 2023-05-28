@@ -47,6 +47,16 @@ def pretty_log(log_level, message, metrics_value, metrics_unit):
     print(f"# {part_1} | {part_2} | {part_3}")
 
 
+def log(message, logfile_path):
+    """Save given message in a log file.
+    Format is Year-Monthname-Day-Hour:Minute:Second"""
+    timestamp_format = '%Y-%h-%d-%H:%M:%S'
+    now = datetime.now()
+    timestamp = now.strftime(timestamp_format)
+    with open(logfile_path, "a") as f:
+        f.write(timestamp + ',' + message + '\n')
+
+
 def print_debug_message(func):
     """Decorator to help debugging. Displays function name & execution time."""
     def wrapper(*func_args, **func_kwargs):
