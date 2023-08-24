@@ -10,6 +10,7 @@ import platform
 import time
 from datetime import datetime
 import tracemalloc
+import os
 
 
 def time_log(start_time):
@@ -64,8 +65,11 @@ def print_debug_message(func):
         return_value = func(*func_args, **func_kwargs)
         execution_time = round(time.time() - time_start, 2)
         blanks = max(0, 30 - len(func.__name__))
-        print("# DEBUG | {} | {} s".format(func.__name__ + ' ' * blanks,
-                                           execution_time))
+        print("# DEBUG: {} | {} s".format(
+            func.__name__ + ' ' * blanks,
+            execution_time
+            )
+        )
         return return_value
     return wrapper
 
@@ -75,7 +79,7 @@ def get_os_type():
     os_type = platform.platform()
     os_type = os_type.split('-')[0]
     if os_type.lower() not in ['windows', 'linux', 'mac', 'android']:
-        print('# ERROR    | Operating system cannot be identified')
+        print('# ERROR: Operating system cannot be identified')
         raise OSError
     return os_type
 
@@ -90,7 +94,7 @@ def set_os_separator():
     elif os_type in ['Linux', 'Mac', 'Android']:
         os_sep = '/'
     else:
-        print('# ERROR    | Wrong input for operating system')
+        print('# ERROR: Wrong input for operating system')
         raise NameError
     return os_sep
 
@@ -103,3 +107,29 @@ def get_today_date():
     today_date = today_date.replace('-', '')
     today_date = today_date.split('.', maxsplit=1)[0]
     return today_date
+
+
+def get_root_path(root_dir='local'):
+    """Return current root directory"""
+    relative_dir = os.getcwd().split(root_dir)[1]
+    root_path = os.getcwd().split(relative_dir)[0]
+    return root_path
+
+
+def create_log_folder(path: str, level: str):
+    """Save the given file in a time tree structure."""
+    today = datetime.today().date()
+    year = str(today.year)
+    month = str(today.month)
+    day = str(today.day)
+    original_path = os.getcwd()
+    os.chdir(path)
+    if year not in os.listdir():
+        os.mkdir(year)
+    if level in ['month', 'day'] and month not in os.listdir():
+        os.chdir(year)
+        os.mkdir(month)
+    if level == 'day' and day not in os.listdir():
+        os.chdir(month)
+        os.mkdir(day)
+    os.chdir(original_path)

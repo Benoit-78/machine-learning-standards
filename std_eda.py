@@ -15,7 +15,7 @@ import pandas as pd
 import scipy.stats as ss
 import seaborn as sns
 
-from .q7 import std_q7 as q7
+from q7 import std_q7 as q7
 
 
 
@@ -27,43 +27,21 @@ class Sampler():
         fraction : float in [0; 1], fraction of the dataframe taken.
         """
         self.dataframe = dataframe
-        self.frac = fraction
+        self.sampled_df = pd.DataFrame()
 
-    def stratified_sampling_df(self, feature):
-        """
-        Parameters
-        ----------
-        feature : string
-
-        Returns
-        -------
-        new_df : pd.DataFrame
-            Stratified dataframe.
-        """
+    def stratified_sampling_df(self, feature, fraction):
+        """Return a stratified dataframe, based on the given feature."""
         cat_counter = self.dataframe[feature].value_counts(normalize=True)
         categories = list(cat_counter.index)
-        new_df = pd.DataFrame()
         for category in categories:
             category_df = self.dataframe[self.dataframe[feature]==category]
-            category_df = category_df.sample(frac=self.frac)
-            new_df = pd.concat([new_df, category_df])
-        return new_df
+            category_df = category_df.sample(frac=fraction)
+            self.sampled_df = pd.concat([self.sampled_df, category_df])
 
     def periodic_sampling_df(self, period):
-        """
-        Parameters
-        ----------
-        period : int
-            Interval between each sample.
-
-        Returns
-        -------
-        new_df :pd.DataFrame
-            Periodic sampled dataframe.
-        """
+        """Return a sampled dataframe, with the argument period interval between each sample."""
         index_list = list(range(0, self.dataframe.shape[0], period))
-        new_dataframe = self.dataframe.iloc[index_list]
-        return new_dataframe
+        self.sampled_df = self.dataframe.iloc[index_list]
 
 
 
